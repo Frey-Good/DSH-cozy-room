@@ -365,6 +365,28 @@
       setWorking: function (on) {
         this.setWorkState(on ? 'working' : 'idle');
       },
+      // Layout changed (furniture placed / moved / removed): re-seat anchors.
+      // If she is at the desk, move her to the new anchor immediately so that
+      // "working" never keeps her standing on the old spot.
+      setAnchors: function (opts) {
+        opts = opts || {};
+        if (opts.home) home = { x: opts.home.x, z: opts.home.z, y: opts.home.y || 0 };
+        if (opts.bed) bed = { x: opts.bed.x, z: opts.bed.z, y: opts.bed.y || 0 };
+        if (opts.desk) desk = { x: opts.desk.x, z: opts.desk.z, y: opts.desk.y || 0 };
+        if (pos === 'desk') {
+          pending = null;
+          fadeDir = 0;
+          fade = 1;
+          plane.material.opacity = 1;
+          applyPose('desk', false);
+          if (workState !== 'idle') playClip(workClip());
+          else goto('idle');
+        } else if (pos === 'bed') {
+          applyPose('bed', !!sleeping);
+          if (sleeping && clips.sleepLoop) playClip('sleepLoop');
+        }
+        return true;
+      },
       getClip: function () { return current; },
       isSleeping: function () { return !!sleeping; },
       playExtra: function (id) {
