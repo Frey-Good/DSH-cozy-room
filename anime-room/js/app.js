@@ -1557,6 +1557,11 @@
       world.setNight(state.night);
       updateNightButton();
       save();
+      // Manual override is authoritative: tell the plugin so its settings panel
+      // and localStorage stay in sync (postMessage is the only cross-origin path).
+      try {
+        parent.postMessage({ type: 'cozy-room-settings', settings: { timeSync: false } }, '*');
+      } catch (err) { /* ignore */ }
       toast('已切换为手动昼夜（时间同步已关闭，可在设置里重新开启）');
     });
     ui.btnReset.addEventListener('click', resetLayout);
