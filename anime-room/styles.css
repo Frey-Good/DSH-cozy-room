@@ -431,3 +431,36 @@ body.night .room-clock {
 .room-clock .clock-weather { opacity: .72; }
 .room-clock .clock-weather:empty { display: none; }
 
+
+/* ---- speech bubble above her head ---- */
+.bubble {
+  position: fixed;
+  z-index: 8;
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 252, 246, .95);
+  color: #4a3a42;
+  font: 13px/1.45 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  box-shadow: 0 6px 22px rgba(90, 60, 60, .18);
+  border: 1px solid rgba(140, 100, 90, .12);
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  transition: opacity .18s ease;
+  white-space: pre-wrap;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: inherit;
+  border-right: 1px solid rgba(140, 100, 90, .12);
+  border-bottom: 1px solid rgba(140, 100, 90, .12);
+  transform: rotate(45deg);
+}
+.bubble.hidden { opacity: 0; }
+body.night .bubble { background: rgba(38, 40, 56, .95); color: #f0eaf2; border-color: rgba(255,255,255,.1); }

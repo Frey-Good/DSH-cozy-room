@@ -59,6 +59,7 @@
     btnRemove: document.getElementById('btn-remove'),
     toast: document.getElementById('toast'),
     loading: document.getElementById('loading'),
+    bubble: document.getElementById('bubble'),
     clockTime: document.getElementById('clock-time'),
     clockWeather: document.getElementById('clock-weather'),
   };
@@ -730,9 +731,95 @@
   function petCharacter() {
     var ch = state.char;
     if (!ch) return;
+    var asleep = ch.sleeping || (ch.obj.isSleeping && ch.obj.isSleeping());
+    if (asleep) {
+      // At night she is not a toy: poke her awake and she gets grumpy, then
+      // rolls back over. (The desktop pet card has its own 3-click wake rule.)
+      if (state.night) {
+        say(pickLine(['唔…别吵…', '我还困着呢…', '再睡五分钟…']), 2600);
+        // A little annoyed wiggle instead of a full animation switch.
+        var base = ch.obj.baseScale || 1;
+        var t0 = performance.now();
+        (function wiggle() {
+          var k = (performance.now() - t0) / 500;
+          if (k >= 1) {
+            ch.obj.root.scale.setScalar(base);
+            return;
+          }
+          var pulse = 1 + Math.sin(k * Math.PI * 10) * 0.025;
+          ch.obj.root.scale.setScalar(base * pulse);
+          requestAnimationFrame(wiggle);
+        })();
+        return;
+      }
+      wakeUp();
+      return;
+    }
     wakeUp();
     ch.obj.play('wave');
     ch.idleSince = performance.now();
+    say(pickLine(['嗯？', '我在～', '怎么啦？']), 1600);
+  }
+
+  function pickLine(lines) {
+    return lines[Math.floor(Math.random() * lines.length)];
+  }
+
+  var bubbleUntil = 0;
+  function say(text, ms) {
+    if (!ui.bubble || !text) return;
+    ui.bubble.textContent = text;
+    ui.bubble.classList.remove('hidden');
+    bubbleUntil = performance.now() + (ms || 2600);
+    updateBubble();
+  }
+  PR.say = say;
+
+  function updateBubble() {
+    if (!ui.bubble || !state.char) return;
+    if (performance.now() > bubbleUntil) {
+      ui.bubble.classList.add('hidden');
+      return;
+    }
+    var p = state.char.obj.root.position;
+    var v = new T.Vector3(p.x, (state.char.obj.root.userData.headY || 2.35), p.z);
+    v.project(world.camera);
+    var x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    var y = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    ui.bubble.style.left = Math.round(x) + 'px';
+    ui.bubble.style.top = Math.round(y) + 'px';
+  }
+
+  // Late-night companion: while you keep working she stays up, checks in now and
+  // then, and after 1am she tells you to sleep and goes to bed herself.
+  var nightTalk = { dayKey: '', last: 0, urged: false, lines: 0 };
+  function nightWatch() {
+    if (!state.night || !state.char) return;
+    var ch = state.char;
+    var asleep = ch.sleeping || (ch.obj.isSleeping && ch.obj.isSleeping());
+    var d = new Date();
+    var key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+    if (nightTalk.dayKey !== key) {
+      nightTalk = { dayKey: key, last: 0, urged: false, lines: 0 };
+    }
+    if (!state.working || asleep) return;
+    var h = (typeof window.__COZY_HOUR === 'number') ? window.__COZY_HOUR : d.getHours();
+    if (h >= 1 && h < 5 && !nightTalk.urged) {
+      nightTalk.urged = true;
+      say('一点了…去睡觉吧。', 5000);
+      setTimeout(function () {
+        if (!state.char) return;
+        if (state.char.obj.play) state.char.obj.play('sleep');
+        state.char.sleeping = true;
+      }, 6000);
+      return;
+    }
+    var now = performance.now();
+    if (nightTalk.lines < 3 && now - nightTalk.last > 20 * 60 * 1000) {
+      nightTalk.last = now;
+      nightTalk.lines += 1;
+      say(pickLine(['还在忙呀…', '我陪你一会儿。', '别太晚了。']), 3200);
+    }
   }
 
   function teleportTo(x, z) {
@@ -1551,6 +1638,8 @@
     reportPetState();
     if (PR.fx) PR.fx.update(dt);
     if (PR.weather) PR.weather.update(dt);
+    updateBubble();
+    nightWatch();
     if (markerLife > 0) {
       markerLife = Math.max(0, markerLife - dt * 1.3);
       marker.material.opacity = markerLife * 0.9;
@@ -1732,6 +1821,11 @@
     get weather() { return { data: state.weather, kind: PR.weather ? PR.weather.kind : null }; },
     act: function (name) { if (state.char) state.char.obj.play(name); },
     // Debug-only helper for the acceptance run: move a floor item without drag.
+    debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
+    debugPet: function () { petCharacter(); },
+    debugSleep: function () { if (state.char) { state.char.sleeping = true; state.char.obj.play('sleep'); } },
+    debugSetWorking: function (v) { state.working = !!v; if (state.char) state.char.obj.setWorking(!!v); },
+    say: function (text, ms) { say(text, ms); },
     debugMoveItem: function (id, x, z) {
       var rec = null;
       for (var i = 0; i < state.items.length; i++) {

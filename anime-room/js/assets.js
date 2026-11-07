@@ -457,6 +457,30 @@
     return g;
   };
 
+  B.display = function () {
+    var g = new T.Group();
+    var w = 1.1;
+    var d = 0.36;
+    var h = 2.05;
+    PR.put(g, PR.box(0.06, h, d, C.wood), -w / 2, h / 2, 0);
+    PR.put(g, PR.box(0.06, h, d, C.wood), w / 2, h / 2, 0);
+    PR.put(g, PR.box(w, h, 0.03, C.creamDark), 0, h / 2, -d / 2 + 0.02);
+    [0.52, 1.02, 1.52].forEach(function (y) {
+      PR.put(g, PR.box(w - 0.1, 0.04, d - 0.02, C.cream), 0, y, 0);
+    });
+    PR.put(g, PR.box(w, 0.05, d, C.cream), 0, h, 0);
+    // a little robot figurine on the top shelf
+    var r = new T.Group();
+    PR.put(r, PR.box(0.16, 0.2, 0.12, 0x9fb6d8), 0, 0.1, 0);
+    PR.put(r, PR.box(0.14, 0.12, 0.1, 0xbfd2ea), 0, 0.27, 0);
+    PR.put(r, PR.box(0.05, 0.03, 0.02, 0x2a2f3a), -0.03, 0.29, 0.051);
+    PR.put(r, PR.box(0.05, 0.03, 0.02, 0x2a2f3a), 0.03, 0.29, 0.051);
+    PR.put(r, PR.box(0.02, 0.08, 0.02, 0x8aa0c0), 0, 0.36, 0);
+    r.position.set(0.16, 1.54, 0.02);
+    g.add(r);
+    return g;
+  };
+
   B.shelf = function () {
     var g = new T.Group();
     var rand = rng(77);
@@ -872,6 +896,7 @@
     { id: 'computer', name: '电脑桌', cat: 'furniture', w: 1.75, d: 0.85, h: 1.3, build: function () { return B.computer(); } },
     { id: 'chair', name: '木椅', cat: 'furniture', w: 0.62, d: 0.55, h: 1.05, build: function () { return B.chair(); } },
     { id: 'shelf', name: '书架', cat: 'furniture', w: 1.52, d: 0.44, h: 2.4, build: function () { return B.shelf(); } },
+    { id: 'display', name: '展示架', cat: 'furniture', w: 1.15, d: 0.4, h: 2.1, build: function () { return B.display(); } },
     { id: 'sofa', name: '沙发', cat: 'furniture', w: 2.16, d: 0.95, h: 1.2, build: function () { return B.sofa(); } },
     { id: 'tv', name: '电视', cat: 'furniture', w: 1.65, d: 0.55, h: 1.6, build: function () { return B.tv(); } },
     { id: 'table', name: '茶几', cat: 'furniture', w: 1.4, d: 0.8, h: 0.85, build: function () { return B.table(); } },

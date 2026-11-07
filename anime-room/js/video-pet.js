@@ -233,9 +233,27 @@
       if (key === 'icecream') energy = Math.min(1, energy + 0.12);
       if (key === 'sleepStart' || key === 'sleepLoop') energy = Math.min(1, energy + 0.15);
       current = key;
-      plane.material.map = c.texture;
-      plane.material.needsUpdate = true;
       var v = c.video;
+      // A freshly-switched video draws a black frame until its first data arrives.
+      // Keep the old frame (or hide the card) instead of flashing black.
+      if (v.readyState < 2) {
+        plane.visible = false;
+        var applyFrame = function () {
+          v.removeEventListener('loadeddata', applyFrame);
+          if (current !== key) return;
+          plane.material.map = c.texture;
+          plane.material.needsUpdate = true;
+          plane.visible = true;
+        };
+        v.addEventListener('loadeddata', applyFrame);
+      } else {
+        plane.material.map = c.texture;
+        plane.material.needsUpdate = true;
+        plane.visible = true;
+      }
+      v.onerror = function () {
+        if (current === key) goto('idle');
+      };
       v.loop = c.loop;
       try { v.currentTime = 0; } catch (e) { /* not seekable yet */ }
       var p = v.play();
