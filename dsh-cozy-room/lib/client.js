@@ -5,7 +5,6 @@
       const inject = [];
       const KEY = 'cozy-room-settings';
       const OUT_KEY = 'cozy-room-out';
-      const POS_KEY = 'cozy-room-pet-pos';
       let BASE = 'http://127.0.0.1:8140';
       const BUILD_ID = 'dsh-cozy-room:1.1.0';
       let roomOrigin = '';
@@ -399,6 +398,60 @@
         let petVideo = null;
         let petState = 'idle';
 
+        const PET_W = 160;
+        const PET_H = 180;
+
+        // Every recall anchors the card above the chat input, not at the last
+        // dragged spot: right edge aligned to the input's right edge minus 24px,
+        // bottom edge 12px above the input's top edge.
+        function visibleInputBox(el) {
+          const r = el.getBoundingClientRect();
+          if (r.width < 120 || r.height < 18 || r.height > 280) return null;
+          const cs = getComputedStyle(el);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return null;
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+        }
+
+        function findChatInput() {
+          const groups = [
+            { sel: 'textarea', kind: 'textarea' },
+            { sel: '[contenteditable="true"]', kind: 'contenteditable' },
+          ];
+          for (let g = 0; g < groups.length; g += 1) {
+            const nodes = document.querySelectorAll(groups[g].sel);
+            let best = null;
+            for (let i = 0; i < nodes.length; i += 1) {
+              const rect = visibleInputBox(nodes[i]);
+              if (!rect) continue;
+              // chat input sits lowest on screen; prefer the widest on a tie
+              if (!best || rect.bottom > best.rect.bottom || (rect.bottom === best.rect.bottom && rect.width > best.rect.width)) {
+                best = { rect, kind: groups[g].kind };
+              }
+            }
+            if (best) return best;
+          }
+          return null;
+        }
+
+        function placeCardAtAnchor() {
+          if (!petWrap) return null;
+          const input = findChatInput();
+          let left;
+          let top;
+          if (input) {
+            left = input.rect.right - PET_W - 24;
+            top = input.rect.top - PET_H - 12;
+          } else {
+            left = window.innerWidth - PET_W - 24;
+            top = Math.round(window.innerHeight * 0.33) - PET_H;
+          }
+          left = Math.max(12, Math.min(window.innerWidth - PET_W - 12, left));
+          top = Math.max(12, Math.min(window.innerHeight - PET_H - 12, top));
+          petWrap.style.left = Math.round(left) + 'px';
+          petWrap.style.top = Math.round(top) + 'px';
+          return input ? input.kind : 'fallback';
+        }
+
         function isNight() {
           const h = new Date().getHours();
           return h >= 23 || h < 7;
@@ -436,12 +489,10 @@
             display: 'none',
           });
 
-          let pos = null;
-          try { pos = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (error) {}
-          const x = pos && typeof pos.x === 'number' ? pos.x : Math.max(8, window.innerWidth - W - 28);
-          const y = pos && typeof pos.y === 'number' ? pos.y : Math.max(8, window.innerHeight - 188 - H);
-          petWrap.style.left = Math.round(x) + 'px';
-          petWrap.style.top = Math.round(y) + 'px';
+          // Real position comes from placeCardAtAnchor() on every recall; a drag
+          // only moves the card for the current appearance.
+          petWrap.style.left = '0px';
+          petWrap.style.top = '0px';
 
           const shadow = document.createElement('div');
           Object.assign(shadow.style, {
@@ -556,14 +607,8 @@
             if (moved < 6) {
               clearPetTimers();
               playPet('wave', false);
-            } else {
-              try {
-                localStorage.setItem(POS_KEY, JSON.stringify({
-                  x: parseFloat(petWrap.style.left),
-                  y: parseFloat(petWrap.style.top),
-                }));
-              } catch (error) {}
             }
+            // Dragging is intentionally not persisted: the next recall re-anchors.
           });
 
           document.body.appendChild(petWrap);
@@ -729,6 +774,7 @@
           recall.title = out ? '把她送回壁纸' : (roomSleeping ? '她在睡觉，多点几下' : '把她召到桌面');
           if (out) {
             buildPet();
+            placeCardAtAnchor(); // every recall starts from the chat-input anchor
             petWrap.style.display = 'block';
             petWrap.animate(
               [
@@ -760,6 +806,11 @@
           }
           postPresence(!out);
         }
+
+        // Keep the card fully visible and above the input when the window resizes.
+        window.addEventListener('resize', function () {
+          if (out && petWrap) placeCardAtAnchor();
+        });
 
         function openLibrary() {
           panel.style.display = 'none';
@@ -978,6 +1029,17 @@
           get sleeping() { return roomSleeping; },
           get clip() { return roomClip; },
           get out() { return out; },
+          // Read-only view used by the recall-anchor acceptance check.
+          get anchor() {
+            if (!petWrap) return null;
+            const input = findChatInput();
+            const c = petWrap.getBoundingClientRect();
+            return {
+              selector: input ? input.kind : 'fallback',
+              input: input ? input.rect : null,
+              card: { left: c.left, top: c.top, right: c.right, bottom: c.bottom, width: c.width, height: c.height },
+            };
+          },
         };
 
         // restore the "out" state on reload

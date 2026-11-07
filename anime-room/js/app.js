@@ -606,23 +606,86 @@
     }
   }
 
-  function createCharacter() {
-    var bedItem = null;
-    var deskItem = null;
-    var catItem = null;
+  // ---------------------------------------------------------------- anchors
+  // The video pet's bed / desk / home anchors have to follow the furniture:
+  // recompute them after every layout change instead of only once at startup.
+  function anchorItems() {
+    var found = { bed: null, computer: null, sofa: null, catbed: null };
     state.items.forEach(function (it) {
-      if (it.def.id === 'bed') bedItem = it;
-      if (it.def.id === 'computer') deskItem = it;
-      if (it.def.id === 'catbed') catItem = it;
+      var id = it.def.id;
+      if (id === 'bed') found.bed = it;
+      else if (id === 'computer') found.computer = it;
+      else if (id === 'sofa') found.sofa = it;
+      else if (id === 'catbed') found.catbed = it;
     });
-    var obj = PR.makeVideoPet({
+    return found;
+  }
+
+  function deskAnchor(computerItem, sofaItem, prevDesk) {
+    if (computerItem) return { x: computerItem.x + 0.6, z: computerItem.z + 0.62, y: 0 };
+    function inside(p) {
+      return p.x > 0.45 && p.x < R.w - 0.45 && p.z > 0.45 && p.z < R.d - 0.45;
+    }
+    function farFromOld(p) {
+      if (!prevDesk) return true;
+      var dx = p.x - prevDesk.x;
+      var dz = p.z - prevDesk.z;
+      return Math.sqrt(dx * dx + dz * dz) > 1.5;
+    }
+    // Fallback 1: in front of the sofa.
+    if (sofaItem) {
+      var inFront = { x: sofaItem.x, z: sofaItem.z + 0.95 };
+      if (inside(inFront) && !catBlocked(inFront.x, inFront.z) && farFromOld(inFront)) {
+        return { x: inFront.x, z: inFront.z, y: 0 };
+      }
+    }
+    // Fallback 2: the regular home spot.
+    var homeP = { x: 3.9, z: 4.0 };
+    if (inside(homeP) && !catBlocked(homeP.x, homeP.z) && farFromOld(homeP)) {
+      return { x: homeP.x, z: homeP.z, y: 0 };
+    }
+    // Fallback 3: any legal spot that is clearly away from the old desk.
+    for (var i = 0; i < 80; i++) {
+      var spot = catFreeSpot();
+      if (farFromOld(spot)) return { x: spot.x, z: spot.z, y: 0 };
+    }
+    return { x: R.w * 0.5, z: R.d * 0.62, y: 0 };
+  }
+
+  function computeAnchors(prevDesk) {
+    var f = anchorItems();
+    return {
       home: { x: 3.9, z: 4.0, y: 0 },
-      bed: bedItem ? { x: bedItem.x, z: bedItem.z + 0.02, y: 0.86 } : { x: 1.9, z: 1.05, y: 0.86 },
-      desk: deskItem ? { x: deskItem.x + 0.6, z: deskItem.z + 0.62, y: 0 } : { x: 6.8, z: 1.47, y: 0 },
-      cat: catItem ? { x: catItem.x, z: catItem.z + 0.8, y: 0 } : { x: 4.6, z: 1.45, y: 0 },
+      bed: f.bed ? { x: f.bed.x, z: f.bed.z + 0.02, y: 0.86 } : { x: 1.9, z: 1.05, y: 0.86 },
+      desk: deskAnchor(f.computer, f.sofa, prevDesk),
+      cat: f.catbed ? { x: f.catbed.x, z: f.catbed.z + 0.8, y: 0 } : { x: 4.6, z: 1.45, y: 0 },
+    };
+  }
+
+  // save() runs after every layout change (place / drag / remove / rotate /
+  // reset), so hooking refreshAnchors() there covers all of them.
+  function refreshAnchors() {
+    if (!state.char || !state.char.obj || !state.char.obj.setAnchors) return false;
+    var prev = state.char.anchors || null;
+    var next = computeAnchors(prev ? prev.desk : null);
+    var changed = !prev ||
+      Math.abs(prev.desk.x - next.desk.x) > 1e-4 || Math.abs(prev.desk.z - next.desk.z) > 1e-4 ||
+      Math.abs(prev.bed.x - next.bed.x) > 1e-4 || Math.abs(prev.bed.z - next.bed.z) > 1e-4;
+    state.char.anchors = next;
+    if (changed) state.char.obj.setAnchors({ home: next.home, bed: next.bed, desk: next.desk });
+    return changed;
+  }
+
+  function createCharacter() {
+    var anchors = computeAnchors(null);
+    var obj = PR.makeVideoPet({
+      home: anchors.home,
+      bed: anchors.bed,
+      desk: anchors.desk,
+      cat: anchors.cat,
       nextHome: randomHomeSpot,
     });
-    state.char = { x: 3.9, z: 4.0, obj: obj, faceAngle: Math.PI * 0.25, idleSince: performance.now(), sleeping: false, yawnAt: 0, zzAt: 0, tp: null };
+    state.char = { x: 3.9, z: 4.0, obj: obj, anchors: anchors, faceAngle: Math.PI * 0.25, idleSince: performance.now(), sleeping: false, yawnAt: 0, zzAt: 0, tp: null };
     scene.add(obj.root);
   }
 
@@ -1315,6 +1378,7 @@
       });
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (err) { /* storage unavailable */ }
+    refreshAnchors();
   }
 
   function loadLayout() {
@@ -1550,6 +1614,21 @@
     get scale() { return state.char ? state.char.obj.root.scale.x : null; },
     get phase() { return state.char && state.char.obj.getPhase ? state.char.obj.getPhase() : null; },
     act: function (name) { if (state.char) state.char.obj.play(name); },
+    // Debug-only helper for the acceptance run: move a floor item without drag.
+    debugMoveItem: function (id, x, z) {
+      var rec = null;
+      for (var i = 0; i < state.items.length; i++) {
+        if (state.items[i].def.id === id) { rec = state.items[i]; break; }
+      }
+      if (!rec || rec.wall) return false;
+      rec.x = +x || 0;
+      rec.z = +z || 0;
+      rec.group.position.set(rec.x, 0, rec.z);
+      rebuildNav();
+      save();
+      if (state.selected === rec) updateSelVisual();
+      return true;
+    },
     get selected() { return state.selected ? state.selected.def.name : null; },
     get placing() { return state.placing ? state.placing.def.name : null; },
     get layout() { return state.items.map(function (it) { return { id: it.def.id, w: it.def.w, d: it.def.d, flat: !!it.def.flat, x: it.x, z: it.z, rot: it.rot, wall: it.wall, u: it.u, y: it.y }; }); },
