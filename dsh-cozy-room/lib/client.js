@@ -473,7 +473,32 @@
           if (p && p.catch) p.catch(function () {});
         }
         function petIdle() {
-          playPet(isNight() ? 'sleep' : 'idle', true);
+          // While she is out on the desktop she stays awake; if nobody plays with
+          // her for a while she walks back into the room (see resetAutoReturn).
+          playPet('idle', true);
+        }
+
+        // Auto-return: 1–5 minutes without interaction and she goes home.
+        const AUTO_RETURN = [60000, 300000];
+        let autoReturnTimer = 0;
+        function autoReturnRange() {
+          const o = window.__COZY_AUTO_RETURN;
+          if (Array.isArray(o) && o.length === 2) return o;
+          return AUTO_RETURN;
+        }
+        function clearAutoReturn() {
+          if (autoReturnTimer) clearTimeout(autoReturnTimer);
+          autoReturnTimer = 0;
+        }
+        function resetAutoReturn() {
+          if (!out) return;
+          clearAutoReturn();
+          const r = autoReturnRange();
+          const ms = r[0] + Math.random() * (r[1] - r[0]);
+          autoReturnTimer = setTimeout(function () {
+            autoReturnTimer = 0;
+            if (out) setOut(false);
+          }, ms);
         }
 
         function buildPet() {
@@ -561,6 +586,7 @@
             });
             b.addEventListener('click', function (e) {
               e.stopPropagation();
+              resetAutoReturn();
               fn();
             });
             bar.appendChild(b);
@@ -582,6 +608,7 @@
 
           petWrap.addEventListener('pointerdown', function (e) {
             if (e.button !== 0) return;
+            resetAutoReturn();
             clearPetTimers();
             dragging = true;
             moved = 0;
@@ -793,7 +820,9 @@
               spawnFx(settings.fx);
               greet();
             });
+            resetAutoReturn();
           } else if (petWrap) {
+            clearAutoReturn();
             clearPetTimers();
             spawnFx(settings.fx);
             const leave = petWrap.animate(
