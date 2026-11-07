@@ -26,7 +26,7 @@
 ```powershell
 cd <项目根目录>
 
-git remote add origin https://github.com/<你的用户名>/DSH-cozy-room.git
+git remote add origin https://github.com/Frey-Good/DSH-cozy-room.git
 git branch -M main
 git push -u origin main
 ```
@@ -52,7 +52,7 @@ git push --force-with-lease origin main
 
 1. 仓库 **Settings → Pages**
 2. Source 选 **Deploy from a branch**，Branch 选 `main`，目录 `/ (root)`
-3. 等 1–2 分钟，访问 `https://<你的用户名>.github.io/DSH-cozy-room/`
+3. 等 1–2 分钟，访问 `https://Frey-Good.github.io/DSH-cozy-room/`
 
 ## 5. 分享给别人（三种方式）
 
