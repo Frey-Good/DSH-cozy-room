@@ -5,6 +5,11 @@
       const inject = [];
       const KEY = 'cozy-room-settings';
       const OUT_KEY = 'cozy-room-out';
+      // Weather keys and timings are frozen by docs/weather-contract.md.
+      const GEO_KEY = 'cozy-room-geo';
+      const WEATHER_CACHE_KEY = 'cozy-room-weather-cache';
+      const WEATHER_REFRESH_MS = 20 * 60 * 1000;
+      const WEATHER_TIMEOUT_MS = 8000;
       let BASE = 'http://127.0.0.1:8140';
       const BUILD_ID = 'dsh-cozy-room:1.1.0';
       let roomOrigin = '';
@@ -17,6 +22,9 @@
         pace: 'normal',
         scale: 1,
         fx: 'stars',
+        timeSync: true,
+        weatherSync: false,
+        city: '沈阳',
       };
       const CLIPS = {
         idle: '待机呼吸休闲.webm',
@@ -44,6 +52,19 @@
         let roomClip = '';
         let wakeClicks = 0;
         let wakeNeed = 3 + Math.floor(Math.random() * 3);
+
+        // Weather data-layer state. This layer only fetches, caches and posts;
+        // the room owns the HUD, sky, light and particles.
+        let weatherCurrent = null;
+        let weatherTimer = null;
+        let weatherSeq = 0;
+        let weatherKey = '';
+        let weatherInFlight = false;
+        let weatherNextAt = 0;
+        let timeSyncBox = null;
+        let cityRow = null;
+        let cityInput = null;
+        let cityDebounce = null;
 
         const frame = document.createElement('iframe');
         frame.id = 'dsh-cozy-room-bg';
@@ -124,6 +145,15 @@
           [400, 1200, 2500].forEach(function (ms) {
             setTimeout(function () { postPresence(!out); }, ms);
           });
+          // Push the last known weather as soon as the room can listen. With the
+          // feature off this is the single `{ weather: null }` that hides the HUD.
+          const city = String(settings.city || '').trim();
+          const enabled = !!settings.weatherSync && !!city;
+          postWeather(enabled ? (cachedFor(city) || weatherCurrent) : null);
+          if (enabled) {
+            // Re-post once in case the room was still booting on the first message.
+            setTimeout(function () { if (weatherCurrent) postWeather(weatherCurrent); }, 1200);
+          }
           try {
             frame.contentWindow.postMessage({ type: 'cozy-room-library-request' }, '*');
           } catch (error) {}
@@ -133,6 +163,155 @@
           try {
             localStorage.setItem(KEY, JSON.stringify(settings));
           } catch (error) {}
+        }
+
+        // ------------------------------------------------------------- weather data
+        // Contract: docs/weather-contract.md. Only the city name (geocoding) and
+        // its lat/lon (forecast) ever leave the machine. Every failure is silent.
+        function readCache(key) {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : null;
+          } catch (error) { return null; }
+        }
+        function writeCache(key, value) {
+          try { localStorage.setItem(key, JSON.stringify(value)); } catch (error) {}
+        }
+        async function fetchJSON(url) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), WEATHER_TIMEOUT_MS);
+          try {
+            const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data && typeof data === 'object' ? data : null;
+          } catch (error) {
+            return null;
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+
+        async function geocode(city) {
+          const cache = readCache(GEO_KEY) || {};
+          const hit = cache[city];
+          if (hit && isFinite(hit.latitude) && isFinite(hit.longitude)) {
+            return { latitude: Number(hit.latitude), longitude: Number(hit.longitude), cached: true };
+          }
+          const data = await fetchJSON(
+            'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=zh'
+          );
+          const first = data && Array.isArray(data.results) ? data.results[0] : null;
+          if (!first || !isFinite(first.latitude) || !isFinite(first.longitude)) return null;
+          const geo = { latitude: Number(first.latitude), longitude: Number(first.longitude) };
+          cache[city] = { latitude: geo.latitude, longitude: geo.longitude, ts: Date.now() };
+          const keys = Object.keys(cache);
+          if (keys.length > 24) delete cache[keys[0]];
+          writeCache(GEO_KEY, cache);
+          return { latitude: geo.latitude, longitude: geo.longitude, cached: false };
+        }
+
+        function hhmm(iso) {
+          return typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(iso)
+            ? iso.slice(11, 16)
+            : undefined;
+        }
+
+        async function fetchWeather(city) {
+          const geo = await geocode(city);
+          if (!geo) return null;
+          const qs = 'latitude=' + encodeURIComponent(geo.latitude)
+            + '&longitude=' + encodeURIComponent(geo.longitude)
+            + '&current=temperature_2m,weather_code,is_day'
+            + '&daily=sunrise,sunset&timezone=auto';
+          const data = await fetchJSON('https://api.open-meteo.com/v1/forecast?' + qs);
+          const cur = data && data.current;
+          if (!cur) return null;
+          const code = Number(cur.weather_code);
+          const temp = Number(cur.temperature_2m);
+          if (!isFinite(code) || !isFinite(temp)) return null;
+          const weather = { city: city, code: code, temp: temp, ts: Date.now() };
+          const day = Number(cur.is_day);
+          if (day === 0 || day === 1) weather.isDay = day;
+          const sunrise = hhmm(data.daily && data.daily.sunrise && data.daily.sunrise[0]);
+          const sunset = hhmm(data.daily && data.daily.sunset && data.daily.sunset[0]);
+          if (sunrise) weather.sunrise = sunrise;
+          if (sunset) weather.sunset = sunset;
+          return weather;
+        }
+
+        function readWeatherCache() {
+          const w = readCache(WEATHER_CACHE_KEY);
+          if (!w || typeof w !== 'object' || typeof w.city !== 'string'
+            || !isFinite(w.code) || !isFinite(w.temp)) return null;
+          return w;
+        }
+        function cachedFor(city) {
+          const w = readWeatherCache();
+          return w && w.city === city ? w : null;
+        }
+
+        function postWeather(weather) {
+          try {
+            frame.contentWindow.postMessage(
+              { type: 'cozy-room-weather', weather: weather || null },
+              roomOrigin || '*'
+            );
+          } catch (error) {}
+        }
+
+        function scheduleWeather() {
+          if (weatherTimer) { clearTimeout(weatherTimer); weatherTimer = null; }
+          weatherNextAt = 0;
+          if (!settings.weatherSync || !String(settings.city || '').trim()) return;
+          weatherNextAt = Date.now() + WEATHER_REFRESH_MS;
+          weatherTimer = setTimeout(function () { refreshWeather('timer'); }, WEATHER_REFRESH_MS);
+        }
+
+        async function refreshWeather(reason) {
+          const city = String(settings.city || '').trim();
+          const enabled = !!settings.weatherSync && !!city;
+          weatherSeq += 1;
+          const seq = weatherSeq;
+          scheduleWeather();
+          if (!enabled) {
+            weatherInFlight = false;
+            weatherCurrent = null;
+            postWeather(null);
+            return { ok: false, reason: 'off' };
+          }
+          weatherInFlight = true;
+          const fresh = await fetchWeather(city);
+          weatherInFlight = false;
+          // A newer settings change invalidates this in-flight result.
+          if (seq !== weatherSeq) return { ok: false, reason: 'stale' };
+          if (fresh) {
+            weatherCurrent = fresh;
+            writeCache(WEATHER_CACHE_KEY, fresh);
+          } else {
+            // Offline / timeout / non-200: last result if any, otherwise null.
+            weatherCurrent = readWeatherCache();
+          }
+          postWeather(weatherCurrent);
+          return { ok: !!fresh, fromCache: !fresh, reason: reason };
+        }
+
+        function weatherSettingsKey() {
+          return (settings.weatherSync ? '1' : '0') + '|' + String(settings.city || '').trim();
+        }
+        function onWeatherSettingsChange() {
+          const key = weatherSettingsKey();
+          if (key === weatherKey) return;
+          weatherKey = key;
+          refreshWeather('settings');
+        }
+        function commitCity(value) {
+          const next = String(value || '').trim();
+          if (next === String(settings.city || '')) return;
+          settings.city = next;
+          save();
+          postSettings();
+          onWeatherSettingsChange();
         }
 
         // --------------------------------------------------------- action library
@@ -146,6 +325,17 @@
         window.addEventListener('message', function (event) {
           if (!roomOrigin || event.origin !== roomOrigin) return;
           if (!event.data) return;
+          if (event.data.type === 'cozy-room-settings') {
+            // The room turns timeSync off when the user presses ☾/☀ manually.
+            // Mirror that authoritative value back into the settings panel.
+            const incoming = event.data.settings || {};
+            if (typeof incoming.timeSync === 'boolean' && incoming.timeSync !== settings.timeSync) {
+              settings.timeSync = incoming.timeSync;
+              save();
+              if (timeSyncBox) timeSyncBox.checked = settings.timeSync;
+            }
+            return;
+          }
           if (event.data.type === 'cozy-room-pet-state') {
             const s = !!event.data.sleeping;
             if (s && !roomSleeping) {
@@ -215,7 +405,7 @@
         head.appendChild(close);
         panel.appendChild(head);
 
-        function toggleRow(label, key) {
+        function toggleRow(label, key, afterChange) {
           const row = document.createElement('label');
           Object.assign(row.style, {
             display: 'flex',
@@ -237,12 +427,59 @@
             settings[key] = box.checked;
             save();
             postSettings();
+            if (afterChange) afterChange(box.checked);
           });
           row.appendChild(span);
           row.appendChild(box);
           panel.appendChild(row);
           return box;
         }
+
+        // --- time / weather settings (docs/weather-contract.md §2) ---
+        timeSyncBox = toggleRow('时间同步', 'timeSync');
+        const weatherSyncBox = toggleRow('天气同步', 'weatherSync', function (on) {
+          if (cityRow) cityRow.style.display = on ? 'flex' : 'none';
+          onWeatherSettingsChange();
+        });
+
+        cityRow = document.createElement('label');
+        Object.assign(cityRow.style, {
+          display: settings.weatherSync ? 'flex' : 'none',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+          padding: '5px 0',
+          borderTop: '1px solid rgba(255,255,255,.07)',
+        });
+        const cityText = document.createElement('span');
+        cityText.textContent = '城市';
+        cityText.style.opacity = '.92';
+        cityInput = document.createElement('input');
+        cityInput.type = 'text';
+        cityInput.value = String(settings.city === undefined ? '沈阳' : settings.city);
+        cityInput.placeholder = '例如：沈阳';
+        cityInput.setAttribute('aria-label', '城市');
+        Object.assign(cityInput.style, {
+          width: '110px',
+          background: 'rgba(255,255,255,.08)',
+          color: '#e9edf5',
+          border: '1px solid rgba(255,255,255,.14)',
+          borderRadius: '8px',
+          padding: '3px 7px',
+          fontSize: '12px',
+          outline: 'none',
+        });
+        cityInput.addEventListener('input', function () {
+          if (cityDebounce) clearTimeout(cityDebounce);
+          cityDebounce = setTimeout(function () { commitCity(cityInput.value); }, 700);
+        });
+        cityInput.addEventListener('change', function () {
+          if (cityDebounce) clearTimeout(cityDebounce);
+          commitCity(cityInput.value);
+        });
+        cityRow.appendChild(cityText);
+        cityRow.appendChild(cityInput);
+        panel.appendChild(cityRow);
 
         toggleRow('跟着我工作', 'followWork');
         toggleRow('夜里会睡觉', 'nightSleep');
@@ -1063,6 +1300,23 @@
           get sleeping() { return roomSleeping; },
           get clip() { return roomClip; },
           get out() { return out; },
+          // Read-only weather data-layer view, used by the 005 acceptance check.
+          get weather() { return weatherCurrent; },
+          get weatherState() {
+            const city = String(settings.city || '').trim();
+            return {
+              timeSync: !!settings.timeSync,
+              weatherSync: !!settings.weatherSync,
+              city: settings.city,
+              enabled: !!settings.weatherSync && !!city,
+              inFlight: weatherInFlight,
+              nextRefreshAt: weatherNextAt,
+              refreshInMs: Math.max(0, weatherNextAt - Date.now()),
+              geo: readCache(GEO_KEY),
+              cache: readWeatherCache(),
+            };
+          },
+          refreshWeather: function (reason) { return refreshWeather(reason || 'manual'); },
           // Read-only view used by the recall-anchor acceptance check.
           get anchor() {
             if (!petWrap) return null;
@@ -1075,6 +1329,13 @@
             };
           },
         };
+
+        // If weather was already enabled in a previous session, fetch once now.
+        // With the default (off) this starts no network request at all.
+        weatherKey = weatherSettingsKey();
+        if (settings.weatherSync && String(settings.city || '').trim()) {
+          refreshWeather('startup');
+        }
 
         // restore the "out" state on reload
         if (out) setOut(true);
