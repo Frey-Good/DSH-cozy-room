@@ -399,3 +399,33 @@ body.embed #hint,
 body.embed #loading,
 body.embed .panel-foot { display: none !important; }
 body.embed #scene { cursor: default; }
+
+/* ---- room clock + weather chip (top-right, visible in embed mode too) ---- */
+.room-clock {
+  position: fixed;
+  top: 64px;
+  right: 18px;
+  z-index: 7;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 248, 240, .72);
+  border: 1px solid rgba(120, 90, 80, .14);
+  color: #5a4a52;
+  font: 12px/1.2 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgba(120, 80, 70, .1);
+  pointer-events: none;
+  user-select: none;
+}
+body.embed .room-clock { top: 56px; right: 16px; }
+body.night .room-clock {
+  background: rgba(30, 34, 48, .62);
+  color: #e8e2ee;
+  border-color: rgba(255, 255, 255, .12);
+}
+.room-clock #clock-time { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.room-clock .clock-weather { opacity: .72; }
+.room-clock .clock-weather:empty { display: none; }

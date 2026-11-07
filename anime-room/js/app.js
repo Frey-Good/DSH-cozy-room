@@ -37,6 +37,9 @@
     parallax: true,
     pace: 'normal',
     scale: 1,
+    timeSync: true,
+    weatherSync: false,
+    city: '沈阳',
   };
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   try {
@@ -56,6 +59,8 @@
     btnRemove: document.getElementById('btn-remove'),
     toast: document.getElementById('toast'),
     loading: document.getElementById('loading'),
+    clockTime: document.getElementById('clock-time'),
+    clockWeather: document.getElementById('clock-weather'),
   };
 
   // --------------------------------------------------------------- utilities
@@ -702,6 +707,7 @@
       }
     }
     if (!s.parallax && PR.world.setParallax) PR.world.setParallax(0, 0);
+    tickClock();
   }
 
   function characterHit() {
@@ -1236,6 +1242,48 @@
     ui.btnNight.textContent = state.night ? '☀ 白天' : '☾ 夜晚';
   }
 
+  // ------------------------------------------------------------- clock / weather
+  var WMO_TEXT = {
+    0: '晴', 1: '晴', 2: '多云', 3: '阴', 45: '雾', 48: '雾',
+    51: '小雨', 53: '小雨', 55: '中雨', 56: '冻雨', 57: '冻雨',
+    61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '冻雨',
+    71: '小雪', 73: '中雪', 75: '大雪', 77: '雪',
+    80: '阵雨', 81: '阵雨', 82: '强阵雨', 85: '阵雪', 86: '阵雪',
+    95: '雷阵雨', 96: '雷阵雨', 99: '雷暴',
+  };
+  function weatherText(code) { return WMO_TEXT[code] || '晴'; }
+
+  function renderClock() {
+    var d = new Date();
+    var hh = ('0' + d.getHours()).slice(-2);
+    var mm = ('0' + d.getMinutes()).slice(-2);
+    if (ui.clockTime) ui.clockTime.textContent = hh + ':' + mm;
+    if (ui.clockWeather) {
+      var w = state.weather;
+      ui.clockWeather.textContent = w && w.city
+        ? w.city + ' · ' + weatherText(w.code) + ' ' + Math.round(w.temp) + '°'
+        : '';
+    }
+  }
+
+  function clockNight() {
+    var h = new Date().getHours();
+    return h >= 19 || h < 6;
+  }
+
+  // Real-clock day/night: keeps the room in sync with the computer clock unless
+  // the user takes manual control (the ☾ button or the settings toggle).
+  function tickClock() {
+    renderClock();
+    if (!state.settings.timeSync) return;
+    var n = clockNight();
+    if (n !== state.night) {
+      state.night = n;
+      world.setNight(n);
+      updateNightButton();
+    }
+  }
+
   // ------------------------------------------------------------- thumbnails
   function renderThumb(def) {
     var size = 128;
@@ -1487,10 +1535,12 @@
     window.addEventListener('keydown', onKey);
 
     ui.btnNight.addEventListener('click', function () {
+      state.settings.timeSync = false;
       state.night = !state.night;
       world.setNight(state.night);
       updateNightButton();
       save();
+      toast('已切换为手动昼夜（时间同步已关闭，可在设置里重新开启）');
     });
     ui.btnReset.addEventListener('click', resetLayout);
     ui.btnRotate.addEventListener('click', function () {
@@ -1511,6 +1561,8 @@
     spawnCat();
     postLibrary();
     applySettings();
+    tickClock();
+    setInterval(tickClock, 15000);
     bindUI();
     refreshCatalog();
     updateHint();
@@ -1555,6 +1607,11 @@
     if (e.data.type === 'cozy-room-pointer') {
       if (!state.settings.parallax) return;
       if (PR.world.setParallax) PR.world.setParallax(e.data.x, e.data.y);
+      return;
+    }
+    if (e.data.type === 'cozy-room-weather') {
+      state.weather = e.data.weather || null;
+      renderClock();
       return;
     }
     if (e.data.type === 'cozy-room-presence') {
