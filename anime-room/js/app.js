@@ -707,6 +707,7 @@
       }
     }
     if (!s.parallax && PR.world.setParallax) PR.world.setParallax(0, 0);
+    if (!s.weatherSync && PR.weather) PR.weather.set('clear');
     tickClock();
   }
 
@@ -1253,6 +1254,21 @@
   };
   function weatherText(code) { return WMO_TEXT[code] || '晴'; }
 
+  function weatherKindOf(code) {
+    if (code === 0) return 'clear';
+    if (code === 1 || code === 2) return 'cloudy';
+    if (code === 3) return 'overcast';
+    if (code === 45 || code === 48) return 'fog';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+    if (code >= 95) return 'thunder';
+    return 'cloudy';
+  }
+
+  function weatherIcon(code) {
+    return { clear: '☀', cloudy: '⛅', overcast: '☁', fog: '🌫', rain: '🌧', snow: '❄', thunder: '⛈' }[weatherKindOf(code)] || '';
+  }
+
   function renderClock() {
     var d = new Date();
     var hh = ('0' + d.getHours()).slice(-2);
@@ -1261,7 +1277,7 @@
     if (ui.clockWeather) {
       var w = state.weather;
       ui.clockWeather.textContent = w && w.city
-        ? w.city + ' · ' + weatherText(w.code) + ' ' + Math.round(w.temp) + '°'
+        ? w.city + ' · ' + weatherIcon(w.code) + ' ' + weatherText(w.code) + ' ' + Math.round(w.temp) + '°'
         : '';
     }
   }
@@ -1509,6 +1525,7 @@
     animateProps(now);
     reportPetState();
     if (PR.fx) PR.fx.update(dt);
+    if (PR.weather) PR.weather.update(dt);
     if (markerLife > 0) {
       markerLife = Math.max(0, markerLife - dt * 1.3);
       marker.material.opacity = markerLife * 0.9;
@@ -1562,6 +1579,7 @@
     postLibrary();
     applySettings();
     tickClock();
+    if (PR.weather) PR.weather.set(state.weather ? weatherKindOf(state.weather.code) : 'clear');
     setInterval(tickClock, 15000);
     bindUI();
     refreshCatalog();
@@ -1611,6 +1629,8 @@
     }
     if (e.data.type === 'cozy-room-weather') {
       state.weather = e.data.weather || null;
+      if (state.weather && PR.weather) PR.weather.set(weatherKindOf(state.weather.code));
+      if (!state.weather && PR.weather) PR.weather.set('clear');
       renderClock();
       return;
     }
@@ -1671,6 +1691,7 @@
     get visible() { return state.char ? state.char.obj.root.visible : null; },
     get scale() { return state.char ? state.char.obj.root.scale.x : null; },
     get phase() { return state.char && state.char.obj.getPhase ? state.char.obj.getPhase() : null; },
+    get weather() { return { data: state.weather, kind: PR.weather ? PR.weather.kind : null }; },
     act: function (name) { if (state.char) state.char.obj.play(name); },
     // Debug-only helper for the acceptance run: move a floor item without drag.
     debugMoveItem: function (id, x, z) {

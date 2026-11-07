@@ -314,13 +314,13 @@
     }
     var t = nightT;
     key.color.copy(dayColor).lerp(nightColor, t);
-    key.intensity = lerp(MODES.day.keyI, MODES.night.keyI, t);
+    key.intensity = lerp(MODES.day.keyI, MODES.night.keyI, t) * weatherLight;
     hemi.color.copy(dayHemi).lerp(nightHemi, t);
-    hemi.intensity = lerp(MODES.day.hemiI, MODES.night.hemiI, t);
-    fill.intensity = lerp(MODES.day.fillI, MODES.night.fillI, t);
-    viewMat.color.copy(dayTint).lerp(nightTint, t);
-    windowLight.intensity = lerp(MODES.day.windowLight, MODES.night.windowLight, t);
-    dustMat.opacity = lerp(MODES.day.dust, MODES.night.dust, t);
+    hemi.intensity = lerp(MODES.day.hemiI, MODES.night.hemiI, t) * weatherLight;
+    fill.intensity = lerp(MODES.day.fillI, MODES.night.fillI, t) * (0.7 + weatherLight * 0.3);
+    viewMat.color.copy(dayTint).lerp(nightTint, t).multiply(weatherTint);
+    windowLight.intensity = lerp(MODES.day.windowLight, MODES.night.windowLight, t) * (0.6 + weatherLight * 0.4);
+    dustMat.opacity = lerp(MODES.day.dust, MODES.night.dust, t) * weatherLight;
     winGlow.material.opacity = lerp(MODES.day.glow, MODES.night.glow, t);
 
     for (var i = 0; i < lamps.length; i++) {
@@ -411,6 +411,32 @@
     updateParallax(dt);
   }
 
+  // ------------------------------------------------------------------ weather
+  // Weather only modulates light + window tint here; rain/snow particles live in
+  // js/weather.js so they can be added/removed without touching the room build.
+  var weatherKind = 'clear';
+  var weatherLight = 1;
+  var weatherTint = new T.Color(0xffffff);
+  var weatherFog = 0;
+
+  var WEATHER_PRESET = {
+    clear: { light: 1.0, tint: 0xffffff, fog: 0 },
+    cloudy: { light: 0.9, tint: 0xf0f2f6, fog: 0 },
+    overcast: { light: 0.74, tint: 0xe2e6ee, fog: 0.08 },
+    fog: { light: 0.66, tint: 0xe9e7e3, fog: 0.4 },
+    rain: { light: 0.62, tint: 0xcfd9e4, fog: 0.22 },
+    snow: { light: 0.86, tint: 0xf3f5f9, fog: 0.16 },
+    thunder: { light: 0.55, tint: 0xc8d0dc, fog: 0.3 },
+  };
+
+  function setWeather(kind) {
+    weatherKind = WEATHER_PRESET[kind] ? kind : 'clear';
+    var p = WEATHER_PRESET[weatherKind];
+    weatherLight = p.light;
+    weatherTint.set(p.tint);
+    weatherFog = p.fog;
+  }
+
   PR.world = {
     renderer: renderer,
     scene: scene,
@@ -428,6 +454,10 @@
     },
     isNight: function () {
       return nightTarget > 0.5;
+    },
+    setWeather: setWeather,
+    getWeather: function () {
+      return weatherKind;
     },
   };
 
