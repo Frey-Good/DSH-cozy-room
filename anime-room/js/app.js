@@ -686,6 +686,7 @@
       nextHome: randomHomeSpot,
     });
     state.char = { x: 3.9, z: 4.0, obj: obj, anchors: anchors, faceAngle: Math.PI * 0.25, idleSince: performance.now(), sleeping: false, yawnAt: 0, zzAt: 0, tp: null };
+    obj.root.visible = state.present;  // 召回期间创建角色也要隐藏，避免“房间里多一个”
     scene.add(obj.root);
   }
 

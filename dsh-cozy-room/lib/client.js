@@ -113,12 +113,17 @@
         }
         function postPresence(present) {
           try {
-            frame.contentWindow.postMessage({ type: 'cozy-room-presence', present }, '*');
+            frame.contentWindow.postMessage({ type: 'cozy-room-presence', present }, roomOrigin || '*');
           } catch (error) {}
         }
         frame.addEventListener('load', function () {
           postSettings();
           postPresence(!out);
+          // The room may still be building its character when the first presence
+          // arrives; re-send briefly so a recall during load cannot leave two of her.
+          [400, 1200, 2500].forEach(function (ms) {
+            setTimeout(function () { postPresence(!out); }, ms);
+          });
           try {
             frame.contentWindow.postMessage({ type: 'cozy-room-library-request' }, '*');
           } catch (error) {}
