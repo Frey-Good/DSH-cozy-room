@@ -1,0 +1,61 @@
+{
+  "name": "dsh-cozy-room",
+  "version": "1.1.0",
+  "description": "A cozy anime isometric room that lives behind your DSH window: decorate it freely, watch a little maid go about her day, and pull her out onto your desktop whenever you want to say hi.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "background",
+    "wallpaper",
+    "room",
+    "cozy",
+    "isometric",
+    "desktop-pet",
+    "web-ui",
+    "cordis"
+  ],
+  "homepage": "https://github.com/Frey-Good/DSH-cozy-room#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frey-Good/DSH-cozy-room.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Frey-Good/DSH-cozy-room/issues"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "room",
+    "icon.png",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "CREDITS.md"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "scripts": {
+    "sync-room": "node scripts/sync-room.mjs",
+    "pack:check": "npm pack --dry-run"
+  }
+}

@@ -1,0 +1,13 @@
+# NOTICE
+
+本仓库的**代码**以 MIT 许可发布（见 `LICENSE`）。
+
+**角色动画素材不是 MIT**：
+
+- 目录：`anime-room/assets/webm/`、`anime-room/js/pet-videos.js`，以及
+  `dsh-cozy-room/room/` 中的同名资源
+- 来源：[dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，作者 PC2005-cloud
+- 许可：**禁止商用**；公开渠道二次发布须注明出处（保留上面的链接与作者名）
+- 详见：`anime-room/CREDITS.md`
+
+换言之：可以免费使用、修改、分享本项目；但不能把包含这些动画的版本用于付费产品或付费分发。

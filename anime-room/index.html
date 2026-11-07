@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>暖光小屋 · Cozy Room</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <main id="stage">
+      <canvas id="scene"></canvas>
+      <div class="vignette"></div>
+      <div class="grain"></div>
+
+      <header class="hud">
+        <div class="brand">
+          <span class="mark"></span>
+          <div>
+            <h1>暖光小屋</h1>
+            <p>ANIME ROOM · 和小蓝一起布置房间</p>
+          </div>
+        </div>
+        <div class="hud-actions">
+          <button id="btn-night" class="pill">☾ 夜晚</button>
+          <button id="btn-reset" class="pill">↺ 重置</button>
+        </div>
+      </header>
+
+      <div id="hint" class="hint">加载中…</div>
+
+      <div id="selbar" class="selbar hidden">
+        <span id="sel-name">已选中</span>
+        <button id="btn-rotate" class="mini">旋转 R</button>
+        <button id="btn-remove" class="mini danger">收起</button>
+      </div>
+
+      <div id="toast" class="toast hidden"></div>
+    </main>
+
+    <aside id="panel">
+      <div class="panel-head">
+        <h2>家具架</h2>
+        <p>点一件，放进房间</p>
+      </div>
+      <div id="tabs" class="tabs"></div>
+      <div id="catalog" class="catalog"></div>
+      <div class="panel-foot">
+        <p>拖拽家具摆位置 · 双击收起</p>
+        <p>点小蓝，她会理你</p>
+      </div>
+    </aside>
+  </div>
+
+  <div id="loading" class="loading"><span>正在把小屋布置好…</span></div>
+
+  <script src="js/three.min.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/pet-videos.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/video-pet.js"></script>
+  <script src="js/action-library.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
+
+
+
+
+
+

@@ -1,0 +1,30 @@
+# 只保留本项目：先忽略根目录一切，再白名单
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/NOTICE
+!/SHARE.md
+!/index.html
+!/anime-room/
+!/dsh-cozy-room/
+
+# 生成物（由 npm run sync-room 生成，不入库）
+/dsh-cozy-room/room/
+
+# 依赖与临时
+node_modules/
+.tmp/
+__pycache__/
+*.bak
+*.log
+
+# 内部文档（本地保留，不公开）
+/HANDOVER.md
+/WORKBUDDY.md
+/WORKBUDDY-ONBOARD.md
+/QUESTIONS.md
+/TASKS/
+/REPORTS/
+/anime-room/状态存档-*.md
