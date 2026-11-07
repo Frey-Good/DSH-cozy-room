@@ -1282,8 +1282,7 @@
     }
   }
 
-  function clockNight() {
-    var h = new Date().getHours();
+  function clockNight() {    var h = new Date().getHours();
     return h >= 19 || h < 6;
   }
 
@@ -1297,6 +1296,22 @@
       state.night = n;
       world.setNight(n);
       updateNightButton();
+    }
+  }
+
+  // The plugin tells us where the chat column starts; keep the clock chip there
+  // so it sits above the conversation instead of over the window buttons.
+  function applyClockAnchor() {
+    var el = document.querySelector('.room-clock');
+    if (!el) return;
+    if (state.chatAnchor) {
+      el.style.left = Math.max(8, Math.round(state.chatAnchor.left + 10)) + 'px';
+      el.style.top = Math.max(8, Math.round(state.chatAnchor.top + 10)) + 'px';
+      el.style.right = 'auto';
+    } else {
+      el.style.left = '';
+      el.style.top = '';
+      el.style.right = '';
     }
   }
 
@@ -1584,6 +1599,7 @@
     postLibrary();
     applySettings();
     tickClock();
+    applyClockAnchor();
     if (PR.weather) PR.weather.set(state.weather ? weatherKindOf(state.weather.code) : 'clear');
     setInterval(tickClock, 15000);
     bindUI();
@@ -1630,6 +1646,11 @@
     if (e.data.type === 'cozy-room-pointer') {
       if (!state.settings.parallax) return;
       if (PR.world.setParallax) PR.world.setParallax(e.data.x, e.data.y);
+      return;
+    }
+    if (e.data.type === 'cozy-room-anchor') {
+      state.chatAnchor = { left: +e.data.left || 0, top: +e.data.top || 0 };
+      applyClockAnchor();
       return;
     }
     if (e.data.type === 'cozy-room-weather') {

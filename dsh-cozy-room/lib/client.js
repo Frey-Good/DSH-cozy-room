@@ -140,6 +140,8 @@
         frame.addEventListener('load', function () {
           postSettings();
           postPresence(!out);
+          postAnchor();
+          [400, 1500].forEach(function (ms) { setTimeout(postAnchor, ms); });
           // The room may still be building its character when the first presence
           // arrives; re-send briefly so a recall during load cannot leave two of her.
           [400, 1200, 2500].forEach(function (ms) {
@@ -675,6 +677,45 @@
           return null;
         }
 
+        function findChatElement() {
+          const groups = ['textarea', '[contenteditable="true"]'];
+          for (let g = 0; g < groups.length; g += 1) {
+            const nodes = document.querySelectorAll(groups[g]);
+            let best = null;
+            for (let i = 0; i < nodes.length; i += 1) {
+              const rect = visibleInputBox(nodes[i]);
+              if (!rect) continue;
+              if (!best || rect.bottom > best.rect.bottom) best = { el: nodes[i], rect };
+            }
+            if (best) return best;
+          }
+          return null;
+        }
+
+        // Top-left of the chat message column, so the room's clock chip lands in
+        // the empty space above the conversation instead of over the window chrome.
+        function chatAnchor() {
+          const found = findChatElement();
+          if (!found) return null;
+          let el = found.el.parentElement;
+          while (el && el !== document.body) {
+            const r = el.getBoundingClientRect();
+            if (r.height > 300 && el.scrollHeight > el.clientHeight + 20) {
+              return { left: r.left, top: r.top };
+            }
+            el = el.parentElement;
+          }
+          return { left: found.rect.left, top: 120 };
+        }
+
+        function postAnchor() {
+          const a = chatAnchor();
+          if (!a) return;
+          try {
+            frame.contentWindow.postMessage({ type: 'cozy-room-anchor', left: a.left, top: a.top }, roomOrigin || '*');
+          } catch (error) {}
+        }
+
         function placeCardAtAnchor() {
           if (!petWrap) return null;
           const input = findChatInput();
@@ -1081,6 +1122,7 @@
         // Keep the card fully visible and above the input when the window resizes.
         window.addEventListener('resize', function () {
           if (out && petWrap) placeCardAtAnchor();
+          postAnchor();
         });
 
         function openLibrary() {

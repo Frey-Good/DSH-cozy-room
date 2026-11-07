@@ -404,7 +404,8 @@ body.embed #scene { cursor: default; }
 .room-clock {
   position: fixed;
   top: 64px;
-  right: 18px;
+  left: 18px;
+  right: auto;
   z-index: 7;
   display: inline-flex;
   align-items: baseline;
@@ -420,7 +421,7 @@ body.embed #scene { cursor: default; }
   pointer-events: none;
   user-select: none;
 }
-body.embed .room-clock { top: 56px; right: 16px; }
+body.embed .room-clock { top: 56px; left: 18px; right: auto; }
 body.night .room-clock {
   background: rgba(30, 34, 48, .62);
   color: #e8e2ee;
@@ -429,3 +430,4 @@ body.night .room-clock {
 .room-clock #clock-time { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .room-clock .clock-weather { opacity: .72; }
 .room-clock .clock-weather:empty { display: none; }
+
