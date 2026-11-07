@@ -103,7 +103,7 @@ export function apply(ctx) {
 
       // Only local pages may read the API/room (file:// -> Origin: null).
       const origin = req.headers.origin;
-      const localOrigin = origin === 'null' || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin || '');
+      const localOrigin = origin === 'null' || /^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?|dsh-app:\/\/[^/]*|app:\/\/[^/]*)$/.test(origin || '');
       const cors = {
         'Cache-Control': 'no-store',
         ...(origin && localOrigin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}),

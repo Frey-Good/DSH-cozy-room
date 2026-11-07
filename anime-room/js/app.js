@@ -1550,7 +1550,7 @@
 
   window.addEventListener('message', function (e) {
     var o = e.origin;
-    if (o !== 'null' && !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o)) return;
+    if (o !== 'null' && !/^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?|dsh-app:\/\/[^/]*|app:\/\/[^/]*)$/.test(o)) return;
     if (!e.data) return;
     if (e.data.type === 'cozy-room-pointer') {
       if (!state.settings.parallax) return;
