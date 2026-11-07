@@ -10,6 +10,8 @@ PR.weather = (function () {
   var snow = null;
   var haze = null;
   var flashLight = null;
+  var flies = null;
+  var flyClock = 0;
   var flash = 0;
   var clock = 0;
   var nextBolt = 4 + Math.random() * 6;
@@ -92,6 +94,29 @@ PR.weather = (function () {
     haze.position.set((WIN.x1 + WIN.x2) / 2, (WIN.y1 + WIN.y2) / 2, -0.36);
     scene.add(haze);
 
+    var fpos = new Float32Array(26 * 3);
+    for (var i = 0; i < 26; i++) {
+      fpos[i * 3] = 1.0 + Math.random() * (7.0 - 1.0);
+      fpos[i * 3 + 1] = 0.45 + Math.random() * 1.7;
+      fpos[i * 3 + 2] = 1.0 + Math.random() * (7.0 - 1.0);
+    }
+    var fgeo = new T.BufferGeometry();
+    fgeo.setAttribute('position', new T.BufferAttribute(fpos, 3));
+    var fmat = new T.PointsMaterial({
+      map: makeDot(),
+      color: 0xffe08a,
+      size: 9,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: T.AdditiveBlending,
+      sizeAttenuation: false,
+    });
+    flies = new T.Points(fgeo, fmat);
+    flies.frustumCulled = false;
+    flies.visible = false;
+    scene.add(flies);
+
     flashLight = new T.PointLight(0xdfe8ff, 0, 6, 2);
     flashLight.position.set((WIN.x1 + WIN.x2) / 2, 2.2, -0.1);
     scene.add(flashLight);
@@ -108,6 +133,13 @@ PR.weather = (function () {
     haze.material.opacity = hazeOpacity;
     haze.visible = hazeOpacity > 0;
     if (kind !== 'thunder') flash = 0;
+  }
+
+  function setFireflies(on) {
+    ensure();
+    if (!flies) return;
+    flies.visible = !!on;
+    if (!on) flies.material.opacity = 0;
   }
 
   function update(dt) {
@@ -153,10 +185,27 @@ PR.weather = (function () {
     } else if (flashLight) {
       flashLight.intensity = 0;
     }
+    if (flies && flies.visible) {
+      flyClock += dt;
+      flies.material.opacity = 0.42 + Math.sin(flyClock * 1.4) * 0.18;
+      var fp = flies.geometry.attributes.position;
+      for (var k = 0; k < fp.count; k++) {
+        var fx = fp.getX(k) + Math.sin(flyClock * 0.6 + k * 1.7) * dt * 0.18;
+        var fy = fp.getY(k) + Math.cos(flyClock * 0.5 + k * 2.1) * dt * 0.1;
+        if (fx < 0.8) fx = 7.2;
+        if (fx > 7.2) fx = 0.8;
+        if (fy < 0.35) fy = 2.2;
+        if (fy > 2.2) fy = 0.35;
+        fp.setX(k, fx);
+        fp.setY(k, fy);
+      }
+      fp.needsUpdate = true;
+    }
   }
 
   return {
     set: set,
+    setFireflies: setFireflies,
     update: update,
     get kind() { return kind; },
   };

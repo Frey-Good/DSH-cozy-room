@@ -1296,7 +1296,14 @@
       state.night = n;
       world.setNight(n);
       updateNightButton();
+      syncAmbient();
     }
+  }
+
+  // Fireflies on clear nights; weather kinds otherwise.
+  function syncAmbient() {
+    if (!PR.weather) return;
+    PR.weather.setFireflies(!!state.night && PR.weather.kind === 'clear');
   }
 
   // The plugin tells us where the chat column starts; keep the clock chip there
@@ -1601,6 +1608,7 @@
     tickClock();
     applyClockAnchor();
     if (PR.weather) PR.weather.set(state.weather ? weatherKindOf(state.weather.code) : 'clear');
+    syncAmbient();
     setInterval(tickClock, 15000);
     bindUI();
     refreshCatalog();
@@ -1657,6 +1665,7 @@
       state.weather = e.data.weather || null;
       if (state.weather && PR.weather) PR.weather.set(weatherKindOf(state.weather.code));
       if (!state.weather && PR.weather) PR.weather.set('clear');
+      syncAmbient();
       renderClock();
       return;
     }
