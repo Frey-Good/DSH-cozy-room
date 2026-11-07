@@ -1300,10 +1300,13 @@
     }
   }
 
-  // Fireflies on clear nights; weather kinds otherwise.
+  // Fireflies on any dry night (clear / cloudy / overcast); not in rain, snow,
+  // fog or thunder.
   function syncAmbient() {
     if (!PR.weather) return;
-    PR.weather.setFireflies(!!state.night && PR.weather.kind === 'clear');
+    var kind = PR.weather.kind;
+    var dry = kind === 'clear' || kind === 'cloudy' || kind === 'overcast';
+    PR.weather.setFireflies(!!state.night && dry);
   }
 
   // The plugin tells us where the chat column starts; keep the clock chip there
