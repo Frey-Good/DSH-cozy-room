@@ -1399,6 +1399,28 @@
         let phoneView = 'home';
         let phoneBadge = null;
 
+        let typingTimer = 0;
+
+        function setPhoneTitle(text) {
+          const t = phoneEl && phoneEl.querySelector('.dsh-phone-title');
+          if (t) t.textContent = text;
+        }
+
+        function startTyping() {
+          setPhoneTitle('对方正在输入…');
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(function () {
+            typingTimer = 0;
+            setPhoneTitle('她');
+          }, 9000);
+        }
+
+        function stopTyping() {
+          clearTimeout(typingTimer);
+          typingTimer = 0;
+          setPhoneTitle('她');
+        }
+
         function fmtPhoneTime(ts) {
           const d = new Date(ts);
           return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
@@ -1461,6 +1483,7 @@
           phoneData.messages.push({ from: from || 'her', text: t, ts: Date.now() });
           if (phoneData.messages.length > 200) phoneData.messages.splice(0, phoneData.messages.length - 200);
           if ((from || 'her') === 'her' && !(phoneEl && phoneEl.classList.contains('open'))) phoneData.unread += 1;
+          if ((from || 'her') === 'her' && typingTimer) stopTyping();
           savePhoneData();
           renderPhone();
         }
@@ -1536,6 +1559,7 @@
           input.value = '';
           addPhoneMessage(text, 'me');
           const sentAt = Date.now();
+          startTyping();
           try {
             frame.contentWindow.postMessage({ type: 'cozy-room-say', text: text }, roomOrigin || '*');
           } catch (error) {}
