@@ -438,6 +438,24 @@
     return { x: 2.4 + Math.random() * 3.0, z: 2.4 + Math.random() * 3.0, y: 0 };
   }
 
+  var OUR_CLIPS = [
+    { id: '自制:看手机-A', name: '看手机-A', file: '自制-看手机-A.webm', cat: '手机', source: 'ours' },
+    { id: '自制:看手机-B', name: '看手机-B', file: '自制-看手机-B.webm', cat: '手机', source: 'ours' },
+    { id: '自制:看手机-C', name: '看手机-C', file: '自制-看手机-C.webm', cat: '手机', source: 'ours' }
+  ];
+
+  function registerOwnClips() {
+    if (!PR.actionLibrary) return;
+    for (var i = 0; i < OUR_CLIPS.length; i++) {
+      var it = OUR_CLIPS[i];
+      var exists = false;
+      for (var j = 0; j < PR.actionLibrary.length; j++) {
+        if (PR.actionLibrary[j].id === it.id) { exists = true; break; }
+      }
+      if (!exists) PR.actionLibrary.push(it);
+    }
+  }
+
   function postLibrary() {
     if (!PR.actionLibrary || location.protocol !== 'http:') return;
     try {
@@ -775,14 +793,19 @@
 
   var bubbleUntil = 0;
   function say(text, ms) {
-    if (!ui.bubble || !text) return;
+    if (!text) return;
+    // One medium per line: phone open / page hidden -> message only; otherwise bubble only.
+    if (state.phoneOpen || state.pageHidden || document.hidden) {
+      try {
+        parent.postMessage({ type: 'cozy-room-speech', text: text }, '*');
+      } catch (err) { /* ignore */ }
+      return;
+    }
+    if (!ui.bubble) return;
     ui.bubble.textContent = text;
     ui.bubble.classList.remove('hidden');
     bubbleUntil = performance.now() + (ms || 2600);
     updateBubble();
-    try {
-      parent.postMessage({ type: 'cozy-room-speech', text: text }, '*');
-    } catch (err) { /* ignore */ }
   }
   PR.say = say;
 
@@ -1721,6 +1744,7 @@
     startStatusPoll();
     startCommandPoll();
     spawnCat();
+    registerOwnClips();
     postLibrary();
     applySettings();
     tickClock();
@@ -1775,6 +1799,20 @@
       if (PR.world.setParallax) PR.world.setParallax(e.data.x, e.data.y);
       return;
     }
+    if (e.data.type === 'cozy-room-phone-state') {
+      state.phoneOpen = !!e.data.open;
+      state.pageHidden = !!e.data.hidden;
+      return;
+    }
+    if (e.data.type === 'cozy-room-say') {
+      if (!state.char || !state.char.obj.playExtra) return;
+      if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) return;
+      state.char.obj.playExtra('自制:看手机-A');
+      setTimeout(function () {
+        say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
+      }, 5600);
+      return;
+    }
     if (e.data.type === 'cozy-room-anchor') {
       state.chatAnchor = { left: +e.data.left || 0, top: +e.data.top || 0 };
       applyClockAnchor();
@@ -1812,7 +1850,8 @@
       return;
     }
     if (e.data.type === 'cozy-room-library-request') {
-      postLibrary();
+      registerOwnClips();
+    postLibrary();
       return;
     }
     if (e.data.type === 'cozy-room-action') {

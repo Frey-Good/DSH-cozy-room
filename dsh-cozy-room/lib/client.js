@@ -1522,6 +1522,7 @@
           phoneEl.querySelector('.dsh-phone-foot input').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); sendPhone(); }
           });
+          document.addEventListener('visibilitychange', postPhoneState);
           renderPhone();
         }
 
@@ -1534,9 +1535,25 @@
           if (!text) return;
           input.value = '';
           addPhoneMessage(text, 'me');
+          const sentAt = Date.now();
+          try {
+            frame.contentWindow.postMessage({ type: 'cozy-room-say', text: text }, roomOrigin || '*');
+          } catch (error) {}
+          // Fallback only if the room cannot answer (no her-message within 9s).
           setTimeout(function () {
-            addPhoneMessage(PHONE_REPLIES[Math.floor(Math.random() * PHONE_REPLIES.length)], 'her');
-          }, 900 + Math.random() * 900);
+            const replied = phoneData.messages.some(function (m) { return m.from === 'her' && m.ts > sentAt; });
+            if (!replied) addPhoneMessage(PHONE_REPLIES[Math.floor(Math.random() * PHONE_REPLIES.length)], 'her');
+          }, 9000);
+        }
+
+        function postPhoneState() {
+          try {
+            frame.contentWindow.postMessage({
+              type: 'cozy-room-phone-state',
+              open: !!(phoneEl && phoneEl.classList.contains('open')),
+              hidden: !!document.hidden,
+            }, roomOrigin || '*');
+          } catch (error) {}
         }
 
         function openPhone() {
@@ -1544,10 +1561,12 @@
           phoneEl.classList.add('open');
           phoneHome();
           renderPhone();
+          postPhoneState();
         }
 
         function closePhone() {
           if (phoneEl) phoneEl.classList.remove('open');
+          postPhoneState();
         }
 
         function togglePhone() {
