@@ -1413,7 +1413,10 @@
   function applyClockAnchor() {
     var el = document.querySelector('.room-clock');
     if (!el) return;
-    if (state.chatAnchor) {
+    // With the brand header visible (standalone / interactive room) the chip
+    // belongs under the title; the chat-column anchor only applies in embed mode.
+    var embedded = document.body.classList.contains('embed');
+    if (state.chatAnchor && embedded) {
       el.style.left = Math.max(8, Math.round(state.chatAnchor.left + 10)) + 'px';
       el.style.top = Math.max(8, Math.round(state.chatAnchor.top + 10)) + 'px';
       el.style.right = 'auto';
@@ -1811,6 +1814,7 @@
     }
     if (e.data.type !== 'cozy-room-mode') return;
     document.body.classList.toggle('embed', !e.data.interactive);
+    applyClockAnchor();
   });
   window.__purpleRoom = {
     get items() { return state.items.length; },

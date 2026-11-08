@@ -403,8 +403,8 @@ body.embed #scene { cursor: default; }
 /* ---- room clock + weather chip (top-right, visible in embed mode too) ---- */
 .room-clock {
   position: fixed;
-  top: 64px;
-  left: 18px;
+  top: 88px;
+  left: 22px;
   right: auto;
   z-index: 7;
   display: inline-flex;
@@ -464,3 +464,4 @@ body.night .room-clock {
 }
 .bubble.hidden { opacity: 0; }
 body.night .bubble { background: rgba(38, 40, 56, .95); color: #f0eaf2; border-color: rgba(255,255,255,.1); }
+
