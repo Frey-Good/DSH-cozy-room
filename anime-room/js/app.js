@@ -1811,10 +1811,16 @@
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
-      state.char.obj.playExtra(phoneClip);
+      // A short, human pause (0–1s) before she picks up the phone.
+      var pause = Math.floor(Math.random() * 1000);
       setTimeout(function () {
-        say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
-      }, 5600);
+        if (!state.char || !state.char.obj) return;
+        state.char.obj.playExtra(phoneClip);
+        // Reply lands when the clip reaches its send beat.
+        setTimeout(function () {
+          say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
+        }, 5600);
+      }, pause);
       return;
     }
     if (e.data.type === 'cozy-room-anchor') {
