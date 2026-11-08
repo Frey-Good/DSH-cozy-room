@@ -772,7 +772,9 @@
     ui.bubble.classList.remove('hidden');
     bubbleUntil = performance.now() + (ms || 2600);
     updateBubble();
-    if (PR.phone && PR.phone.message) PR.phone.message(text);
+    try {
+      parent.postMessage({ type: 'cozy-room-speech', text: text }, '*');
+    } catch (err) { /* ignore */ }
   }
   PR.say = say;
 

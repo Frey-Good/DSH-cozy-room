@@ -338,6 +338,10 @@
             }
             return;
           }
+          if (event.data.type === 'cozy-room-speech') {
+            addPhoneMessage(String(event.data.text || ''), 'her');
+            return;
+          }
           if (event.data.type === 'cozy-room-pet-state') {
             const s = !!event.data.sleeping;
             if (s && !roomSleeping) {
@@ -1310,12 +1314,6 @@
         let interactive = false;
 
         const phoneBtn = roundButton('📱', '她的手机');
-        phoneBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          try {
-            frame.contentWindow.postMessage({ type: 'cozy-room-phone', open: true }, roomOrigin || '*');
-          } catch (error) {}
-        });
 
         function setInteractive(on) {
           interactive = on;
@@ -1346,6 +1344,226 @@
         ui.appendChild(recall);
         ui.appendChild(home);
         ui.appendChild(phoneBtn);
+
+﻿        // ------------------------------------------------------------- phone
+        // App-level UI: lives in the client so it paints above the room iframe
+        // and the chat text. Toggle from the 📱 button.
+        const PHONE_KEY = 'cozy-room-phone';
+        const phoneData = (function () {
+          let d = null;
+          try { d = JSON.parse(localStorage.getItem(PHONE_KEY) || 'null'); } catch (error) {}
+          if (!d || !Array.isArray(d.messages)) d = { messages: [], unread: 0 };
+          return d;
+        })();
+
+        function savePhoneData() {
+          try { localStorage.setItem(PHONE_KEY, JSON.stringify(phoneData)); } catch (error) {}
+        }
+
+        const phoneStyle = document.createElement('style');
+        phoneStyle.textContent = [
+          '.dsh-phone{position:fixed;right:90px;top:50%;transform:translateY(-50%);width:340px;height:min(620px,86vh);z-index:2147483002;background:#ededed;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.42);display:none;flex-direction:column;overflow:hidden;font:13px/1.45 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}',
+          '.dsh-phone.open{display:flex}',
+          '.dsh-phone-head{height:48px;flex:none;display:flex;align-items:center;justify-content:center;position:relative;background:#ededed;border-bottom:1px solid #dcdcdc}',
+          '.dsh-phone-title{font-weight:600;font-size:15px;color:#191919}',
+          '.dsh-phone-close,.dsh-phone-back{position:absolute;top:8px;width:32px;height:32px;border:0;background:transparent;color:#666;font-size:22px;line-height:30px;cursor:pointer}',
+          '.dsh-phone-close{right:8px}',
+          '.dsh-phone-back{left:6px;display:none}',
+          '.dsh-phone-back.show{display:block}',
+          '.dsh-phone-home{flex:1;min-height:0;padding:18px 16px;background:linear-gradient(160deg,#dfe9f7,#f4f0ea 62%);display:flex;flex-direction:column}',
+          '.dsh-phone-home.hidden,.dsh-phone-chat.hidden{display:none}',
+          '.dsh-phone-clock{text-align:center;font-weight:600;font-size:30px;color:#2c3440;letter-spacing:.04em;margin:4px 0 22px}',
+          '.dsh-phone-apps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 8px}',
+          '.dsh-phone-app{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;border:0;background:transparent;cursor:pointer;padding:0;font:inherit;color:inherit}',
+          '.dsh-phone-app .ic{width:54px;height:54px;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:26px;box-shadow:0 3px 8px rgba(40,50,70,.12)}',
+          '.dsh-phone-app .nm{font-size:11px;color:#3a4250}',
+          '.dsh-phone-app.off{opacity:.38;cursor:default}',
+          '.dsh-phone-dot{position:absolute;top:-5px;right:6px;min-width:18px;height:18px;border-radius:9px;background:#fa5151;color:#fff;font-size:11px;line-height:18px;text-align:center;padding:0 5px;display:none}',
+          '.dsh-phone-dot.on{display:block}',
+          '.dsh-phone-hint{margin-top:auto;text-align:center;color:#8a93a3;font-size:11px}',
+          '.dsh-phone-chat{flex:1;min-height:0;display:flex;flex-direction:column}',
+          '.dsh-phone-list{flex:1;overflow-y:auto;padding:10px 10px 14px}',
+          '.dsh-phone-time{text-align:center;margin:10px 0 6px;color:#9a9a9a;font-size:11px}',
+          '.dsh-phone-row{display:flex;align-items:flex-start;gap:8px;margin:6px 0}',
+          '.dsh-phone-row.me{justify-content:flex-end}',
+          '.dsh-phone-av{flex:none;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#9fc6ff,#5b8dd6);color:#fff;font-size:12px;line-height:30px;text-align:center}',
+          '.dsh-phone-bub{max-width:212px;padding:8px 10px;border-radius:8px;background:#fff;color:#1a1a1a;word-break:break-word}',
+          '.dsh-phone-row.me .dsh-phone-bub{background:#95ec69}',
+          '.dsh-phone-foot{flex:none;display:flex;gap:8px;padding:8px;background:#f7f7f7;border-top:1px solid #dcdcdc}',
+          '.dsh-phone-foot input{flex:1;height:34px;border-radius:6px;border:1px solid #ddd;padding:0 10px;font:13px inherit;outline:none}',
+          '.dsh-phone-send{height:34px;padding:0 12px;border:0;border-radius:6px;background:#07c160;color:#fff;font:600 13px inherit;cursor:pointer}',
+        ].join('');
+        document.head.appendChild(phoneStyle);
+
+        let phoneEl = null;
+        let phoneView = 'home';
+        let phoneBadge = null;
+
+        function fmtPhoneTime(ts) {
+          const d = new Date(ts);
+          return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+        }
+
+        function phoneUnread() {
+          return phoneData.unread || 0;
+        }
+
+        function refreshPhoneBadge() {
+          const n = phoneUnread();
+          if (phoneBadge) {
+            phoneBadge.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
+            phoneBadge.classList.toggle('on', n > 0);
+          }
+        }
+
+        function renderPhone() {
+          if (!phoneEl) return;
+          const list = phoneEl.querySelector('.dsh-phone-list');
+          if (!list) return;
+          const msgs = phoneData.messages.slice(-60);
+          list.innerHTML = '';
+          if (!msgs.length) {
+            const empty = document.createElement('div');
+            empty.className = 'dsh-phone-time';
+            empty.textContent = '还没有消息。她大概在房间里发呆。';
+            list.appendChild(empty);
+          }
+          let last = 0;
+          msgs.forEach(function (m) {
+            if (!last || m.ts - last > 5 * 60 * 1000) {
+              const t = document.createElement('div');
+              t.className = 'dsh-phone-time';
+              t.textContent = fmtPhoneTime(m.ts);
+              list.appendChild(t);
+            }
+            last = m.ts;
+            const row = document.createElement('div');
+            row.className = 'dsh-phone-row ' + (m.from === 'me' ? 'me' : 'her');
+            if (m.from !== 'me') {
+              const av = document.createElement('div');
+              av.className = 'dsh-phone-av';
+              av.textContent = '蓝';
+              row.appendChild(av);
+            }
+            const b = document.createElement('div');
+            b.className = 'dsh-phone-bub';
+            b.textContent = m.text;
+            row.appendChild(b);
+            list.appendChild(row);
+          });
+          list.scrollTop = list.scrollHeight;
+          refreshPhoneBadge();
+        }
+
+        function addPhoneMessage(text, from) {
+          const t = String(text || '').trim();
+          if (!t) return;
+          phoneData.messages.push({ from: from || 'her', text: t, ts: Date.now() });
+          if (phoneData.messages.length > 200) phoneData.messages.splice(0, phoneData.messages.length - 200);
+          if ((from || 'her') === 'her' && !(phoneEl && phoneEl.classList.contains('open'))) phoneData.unread += 1;
+          savePhoneData();
+          renderPhone();
+        }
+
+        function phoneHome() {
+          phoneView = 'home';
+          if (!phoneEl) return;
+          phoneEl.querySelector('.dsh-phone-home').classList.remove('hidden');
+          phoneEl.querySelector('.dsh-phone-chat').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-back').classList.remove('show');
+          phoneEl.querySelector('.dsh-phone-clock').textContent = fmtPhoneTime(Date.now());
+        }
+
+        function phoneChat() {
+          phoneView = 'chat';
+          if (!phoneEl) return;
+          phoneEl.querySelector('.dsh-phone-home').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-chat').classList.remove('hidden');
+          phoneEl.querySelector('.dsh-phone-back').classList.add('show');
+          phoneData.unread = 0;
+          savePhoneData();
+          renderPhone();
+          const input = phoneEl.querySelector('.dsh-phone-foot input');
+          setTimeout(function () { if (input) input.focus(); }, 120);
+        }
+
+        function phoneBuild() {
+          if (phoneEl) return;
+          phoneEl = document.createElement('div');
+          phoneEl.className = 'dsh-phone';
+          phoneEl.innerHTML =
+            '<div class="dsh-phone-head">' +
+            '<button class="dsh-phone-back" aria-label="返回">‹</button>' +
+            '<span class="dsh-phone-title">她</span>' +
+            '<button class="dsh-phone-close" aria-label="关闭">×</button>' +
+            '</div>' +
+            '<div class="dsh-phone-home">' +
+            '<div class="dsh-phone-clock">--:--</div>' +
+            '<div class="dsh-phone-apps">' +
+            '<button class="dsh-phone-app" data-app="chat"><span class="ic">💬</span><span class="nm">聊天</span><b class="dsh-phone-dot" data-dot></b></button>' +
+            '<button class="dsh-phone-app off"><span class="ic">🖼</span><span class="nm">相册</span></button>' +
+            '<button class="dsh-phone-app off"><span class="ic">🌱</span><span class="nm">菜地</span></button>' +
+            '<button class="dsh-phone-app off"><span class="ic">✈️</span><span class="nm">旅行</span></button>' +
+            '</div>' +
+            '<div class="dsh-phone-hint">更多 App 还在路上</div>' +
+            '</div>' +
+            '<div class="dsh-phone-chat hidden">' +
+            '<div class="dsh-phone-list"></div>' +
+            '<div class="dsh-phone-foot">' +
+            '<input type="text" placeholder="发消息…" maxlength="120">' +
+            '<button class="dsh-phone-send">发送</button>' +
+            '</div>' +
+            '</div>';
+          document.body.appendChild(phoneEl);
+          phoneEl.querySelector('.dsh-phone-close').addEventListener('click', closePhone);
+          phoneEl.querySelector('.dsh-phone-back').addEventListener('click', phoneHome);
+          phoneEl.querySelector('[data-app="chat"]').addEventListener('click', phoneChat);
+          phoneEl.querySelector('.dsh-phone-send').addEventListener('click', sendPhone);
+          phoneEl.querySelector('.dsh-phone-foot input').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); sendPhone(); }
+          });
+          renderPhone();
+        }
+
+        const PHONE_REPLIES = ['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。'];
+
+        function sendPhone() {
+          if (!phoneEl) return;
+          const input = phoneEl.querySelector('.dsh-phone-foot input');
+          const text = (input.value || '').trim();
+          if (!text) return;
+          input.value = '';
+          addPhoneMessage(text, 'me');
+          setTimeout(function () {
+            addPhoneMessage(PHONE_REPLIES[Math.floor(Math.random() * PHONE_REPLIES.length)], 'her');
+          }, 900 + Math.random() * 900);
+        }
+
+        function openPhone() {
+          phoneBuild();
+          phoneEl.classList.add('open');
+          phoneHome();
+          renderPhone();
+        }
+
+        function closePhone() {
+          if (phoneEl) phoneEl.classList.remove('open');
+        }
+
+        function togglePhone() {
+          phoneBuild();
+          if (phoneEl.classList.contains('open')) closePhone();
+          else openPhone();
+        }
+
+        phoneBadge = document.createElement('span');
+        phoneBadge.className = 'dsh-phone-dot';
+        phoneBtn.appendChild(phoneBadge);
+        phoneBtn.addEventListener('click', function (event) {
+          event.stopPropagation();
+          togglePhone();
+        });
+
 
         window.__cozyRoom = {
           get sleeping() { return roomSleeping; },
