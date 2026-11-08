@@ -690,3 +690,6 @@ body.night .bubble { background: rgba(38, 40, 56, .95); color: #f0eaf2; border-c
 
 /* keep the phone clear of the furniture panel when it is visible */
 body:not(.embed) .phone-card { right: 324px; }
+
+/* clear the plugin's round buttons in wallpaper (embed) mode */
+body.embed .phone-card { right: 90px; }

@@ -82,15 +82,6 @@ PR.phone = (function () {
     if (built) return;
     built = true;
 
-    btn = document.createElement('button');
-    btn.id = 'phone-btn';
-    btn.className = 'phone-btn';
-    btn.title = '她的手机';
-    btn.innerHTML = '📱<span class="phone-badge" id="phone-badge"></span>';
-    btn.addEventListener('click', function () { toggle(); });
-    document.body.appendChild(btn);
-    badgeEl = btn.querySelector('.phone-badge');
-
     card = document.createElement('div');
     card.id = 'phone-card';
     card.className = 'phone-card hidden';
@@ -194,7 +185,7 @@ PR.phone = (function () {
     listEl.scrollTop = listEl.scrollHeight;
     var n = st.unread || 0;
     var label = n ? (n > 99 ? '99+' : String(n)) : '';
-    [badgeEl, appBadge].forEach(function (el) {
+    [appBadge].forEach(function (el) {
       if (!el) return;
       el.textContent = label;
       el.classList.toggle('on', n > 0);
@@ -227,7 +218,6 @@ PR.phone = (function () {
     build();
     open = true;
     card.classList.remove('hidden');
-    btn.classList.add('open');
     showHome();
     render();
     if (PR.bus) PR.bus.emit('phone:open', {});
@@ -237,7 +227,6 @@ PR.phone = (function () {
     if (!open) return;
     open = false;
     card.classList.add('hidden');
-    btn.classList.remove('open');
     if (PR.bus) PR.bus.emit('phone:close', {});
   }
 
@@ -258,11 +247,15 @@ PR.phone = (function () {
     return m;
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', build);
-  } else {
-    build();
-  }
+  // Only the plugin's 📱 button opens the phone; the room alone shows nothing.
+  window.addEventListener('message', function (e) {
+    var o = e.origin;
+    if (o !== 'null' && !/^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?|dsh-app:\/\/[^/]*|app:\/\/[^/]*)$/.test(o)) return;
+    if (!e.data) return;
+    if (e.data.type === 'cozy-room-phone') {
+      if (e.data.open) openPhone(); else close();
+    }
+  });
 
   return {
     open: openPhone,

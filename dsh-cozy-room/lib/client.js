@@ -1309,6 +1309,14 @@
         const home = roundButton('🏠', '进房间玩（Esc 退出）');
         let interactive = false;
 
+        const phoneBtn = roundButton('📱', '她的手机');
+        phoneBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          try {
+            frame.contentWindow.postMessage({ type: 'cozy-room-phone', open: true }, roomOrigin || '*');
+          } catch (error) {}
+        });
+
         function setInteractive(on) {
           interactive = on;
           frame.style.zIndex = on ? '2147482000' : '-1';
@@ -1337,6 +1345,7 @@
         ui.appendChild(gear);
         ui.appendChild(recall);
         ui.appendChild(home);
+        ui.appendChild(phoneBtn);
 
         window.__cozyRoom = {
           get sleeping() { return roomSleeping; },
