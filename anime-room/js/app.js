@@ -1728,6 +1728,7 @@
     if (PR.weather) PR.weather.set(state.weather ? weatherKindOf(state.weather.code) : 'clear');
     syncAmbient();
     setInterval(tickClock, 15000);
+    if (PR.director) PR.director.start();
     bindUI();
     refreshCatalog();
     updateHint();
