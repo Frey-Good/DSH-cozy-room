@@ -441,7 +441,8 @@
   var OUR_CLIPS = [
     { id: '自制:看手机-A', name: '看手机-A', file: '自制-看手机-A.webm', cat: '手机', source: 'ours' },
     { id: '自制:看手机-B', name: '看手机-B', file: '自制-看手机-B.webm', cat: '手机', source: 'ours' },
-    { id: '自制:看手机-C', name: '看手机-C', file: '自制-看手机-C.webm', cat: '手机', source: 'ours' }
+    { id: '自制:看手机-C', name: '看手机-C', file: '自制-看手机-C.webm', cat: '手机', source: 'ours' },
+    { id: '自制:看手机-D', name: '看手机-D', file: '自制-看手机-D.webm', cat: '手机', source: 'ours' }
   ];
 
   function registerOwnClips() {
@@ -1807,7 +1808,10 @@
     if (e.data.type === 'cozy-room-say') {
       if (!state.char || !state.char.obj.playExtra) return;
       if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) return;
-      state.char.obj.playExtra('自制:看手机-A');
+      var phoneClip = '自制:看手机-A';
+      var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
+      if (spot === 'desk') phoneClip = '自制:看手机-D';
+      state.char.obj.playExtra(phoneClip);
       setTimeout(function () {
         say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
       }, 5600);

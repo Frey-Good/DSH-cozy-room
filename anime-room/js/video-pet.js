@@ -407,6 +407,7 @@
       },
       getClip: function () { return current; },
       isSleeping: function () { return !!sleeping; },
+      getPos: function () { return pos; },
       playExtra: function (id) {
         var lib = PR.actionLibrary || [];
         var item = null;
