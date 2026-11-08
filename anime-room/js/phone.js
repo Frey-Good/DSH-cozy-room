@@ -1,5 +1,5 @@
-/* Purple room — WeChat-style phone for her messages.
-   Data comes from PR.store (js/game-state.js). A tiny fallback store keeps the
+/* Purple room — WeChat-style phone: home screen + chat app.
+   Data comes from PR.store (js/game-state.js); a small fallback store keeps the
    UI usable until that file exists. */
 window.PR = window.PR || {};
 
@@ -7,7 +7,8 @@ PR.phone = (function () {
   var KEY = 'cozy-room-game';
   var open = false;
   var built = false;
-  var btn, card, listEl, inputEl, badgeEl, sendBtn;
+  var view = 'home'; // 'home' | 'chat'
+  var btn, card, homeEl, chatEl, listEl, inputEl, badgeEl, appBadge, backBtn, titleEl, clockEl, clockTimer;
 
   var REPLIES = [
     '嗯嗯，我在。',
@@ -84,7 +85,7 @@ PR.phone = (function () {
     btn = document.createElement('button');
     btn.id = 'phone-btn';
     btn.className = 'phone-btn';
-    btn.title = '她的消息';
+    btn.title = '她的手机';
     btn.innerHTML = '📱<span class="phone-badge" id="phone-badge"></span>';
     btn.addEventListener('click', function () { toggle(); });
     document.body.appendChild(btn);
@@ -94,26 +95,59 @@ PR.phone = (function () {
     card.id = 'phone-card';
     card.className = 'phone-card hidden';
     card.innerHTML =
-      '<div class="phone-head"><span class="phone-title">她</span>' +
-      '<button class="phone-close" aria-label="关闭">×</button></div>' +
+      '<div class="phone-head">' +
+      '<button class="phone-back hidden" aria-label="返回">‹</button>' +
+      '<span class="phone-title" id="phone-title">她</span>' +
+      '<button class="phone-close" aria-label="关闭">×</button>' +
+      '</div>' +
+      '<div class="phone-home" id="phone-home">' +
+      '<div class="phone-home-clock" id="phone-home-clock">--:--</div>' +
+      '<div class="phone-apps">' +
+      '<button class="phone-app" data-app="chat">' +
+      '<span class="app-icon">💬</span><span class="app-name">聊天</span>' +
+      '<b class="app-badge" id="phone-app-badge"></b></button>' +
+      '<button class="phone-app disabled"><span class="app-icon">🖼</span><span class="app-name">相册</span></button>' +
+      '<button class="phone-app disabled"><span class="app-icon">🌱</span><span class="app-name">菜地</span></button>' +
+      '<button class="phone-app disabled"><span class="app-icon">✈️</span><span class="app-name">旅行</span></button>' +
+      '</div>' +
+      '<div class="phone-home-hint">更多 App 还在路上</div>' +
+      '</div>' +
+      '<div class="phone-chat hidden" id="phone-chat">' +
       '<div class="phone-list" id="phone-list"></div>' +
       '<div class="phone-foot">' +
       '<input id="phone-input" type="text" placeholder="发消息…" maxlength="120">' +
       '<button id="phone-send" class="phone-send">发送</button>' +
+      '</div>' +
       '</div>';
     document.body.appendChild(card);
 
+    homeEl = card.querySelector('#phone-home');
+    chatEl = card.querySelector('#phone-chat');
     listEl = card.querySelector('#phone-list');
     inputEl = card.querySelector('#phone-input');
-    sendBtn = card.querySelector('#phone-send');
+    titleEl = card.querySelector('#phone-title');
+    backBtn = card.querySelector('.phone-back');
+    clockEl = card.querySelector('#phone-home-clock');
+    appBadge = card.querySelector('#phone-app-badge');
+
     card.querySelector('.phone-close').addEventListener('click', function () { close(); });
-    sendBtn.addEventListener('click', function () { send(); });
+    backBtn.addEventListener('click', function () { showHome(); });
+    card.querySelector('[data-app="chat"]').addEventListener('click', function () { showChat(); });
+    card.querySelector('#phone-send').addEventListener('click', function () { send(); });
     inputEl.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); send(); }
     });
 
+    clockTimer = setInterval(updateClock, 30 * 1000);
+    updateClock();
     store().subscribe(function () { render(); });
     render();
+  }
+
+  function updateClock() {
+    if (!clockEl) return;
+    var d = new Date();
+    clockEl.textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
   }
 
   function render() {
@@ -158,11 +192,33 @@ PR.phone = (function () {
       listEl.appendChild(row);
     });
     listEl.scrollTop = listEl.scrollHeight;
-    if (badgeEl) {
-      var n = st.unread || 0;
-      badgeEl.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
-      badgeEl.classList.toggle('on', n > 0);
-    }
+    var n = st.unread || 0;
+    var label = n ? (n > 99 ? '99+' : String(n)) : '';
+    [badgeEl, appBadge].forEach(function (el) {
+      if (!el) return;
+      el.textContent = label;
+      el.classList.toggle('on', n > 0);
+    });
+  }
+
+  function showHome() {
+    view = 'home';
+    homeEl.classList.remove('hidden');
+    chatEl.classList.add('hidden');
+    backBtn.classList.add('hidden');
+    titleEl.textContent = '她';
+    updateClock();
+  }
+
+  function showChat() {
+    view = 'chat';
+    homeEl.classList.add('hidden');
+    chatEl.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
+    titleEl.textContent = '她';
+    store().markRead();
+    render();
+    setTimeout(function () { if (inputEl) inputEl.focus(); }, 120);
   }
 
   function toggle() { if (open) close(); else openPhone(); }
@@ -172,10 +228,9 @@ PR.phone = (function () {
     open = true;
     card.classList.remove('hidden');
     btn.classList.add('open');
-    store().markRead();
+    showHome();
     render();
     if (PR.bus) PR.bus.emit('phone:open', {});
-    setTimeout(function () { if (inputEl) inputEl.focus(); }, 120);
   }
 
   function close() {
@@ -214,6 +269,9 @@ PR.phone = (function () {
     close: close,
     toggle: toggle,
     message: message,
+    showHome: showHome,
+    showChat: showChat,
     get isOpen() { return open; },
+    get view() { return view; },
   };
 })();
