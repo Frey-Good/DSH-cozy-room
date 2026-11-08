@@ -456,8 +456,12 @@
             return;
           }
           var st = s.state || (s.working ? 'working' : 'idle');
+          var wasWorking = state.working;
           state.workState = st;
           state.working = st !== 'idle';
+          if (PR.bus && wasWorking !== state.working) {
+            PR.bus.emit(state.working ? 'pet:work:start' : 'pet:work:end', { state: st });
+          }
           if (state.char) state.char.obj.setWorkState(st);
         })
         .catch(function () {});
@@ -725,7 +729,10 @@
     ch.sleeping = false;
     ch.yawnAt = 0;
     ch.idleSince = performance.now();
-    if (wasAsleep) ch.obj.play('wake');
+    if (wasAsleep) {
+      ch.obj.play('wake');
+      if (PR.bus) PR.bus.emit('pet:wake', {});
+    }
   }
 
   function petCharacter() {
@@ -758,6 +765,7 @@
     wakeUp();
     ch.obj.play('wave');
     ch.idleSince = performance.now();
+    if (PR.bus) PR.bus.emit('pet:touch', { clip: 'wave' });
     say(pickLine(['嗯？', '我在～', '怎么啦？']), 1600);
   }
 
@@ -890,6 +898,7 @@
       ch.sleeping = true;
       ch.yawnAt = now;
       ch.obj.play('sleep');
+      if (PR.bus) PR.bus.emit('pet:sleep', {});
     }
 
     ch.obj.update(dt, false);
@@ -1399,6 +1408,7 @@
       world.setNight(n);
       updateNightButton();
       syncAmbient();
+      if (PR.bus) PR.bus.emit('time:phase', { night: n });
     }
   }
 
@@ -1771,7 +1781,10 @@
     }
     if (e.data.type === 'cozy-room-weather') {
       state.weather = e.data.weather || null;
-      if (state.weather && PR.weather) PR.weather.set(weatherKindOf(state.weather.code));
+      if (state.weather && PR.weather) {
+        PR.weather.set(weatherKindOf(state.weather.code));
+        if (PR.bus) PR.bus.emit('weather:change', { kind: weatherKindOf(state.weather.code), code: state.weather.code });
+      }
       if (!state.weather && PR.weather) PR.weather.set('clear');
       syncAmbient();
       renderClock();
