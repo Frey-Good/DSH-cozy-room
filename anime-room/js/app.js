@@ -1125,18 +1125,30 @@
     var rec = state.selected;
     if (!rec || rec.wall) return;
     var newRot = (rec.rot + Math.PI / 2) % (Math.PI * 2);
-    var f = footprint(rec.def, newRot);
-    var x = clamp(rec.x, f.w / 2 + EDGE, R.w - f.w / 2 - EDGE);
-    var z = clamp(rec.z, f.d / 2 + EDGE, R.d - f.d / 2 - EDGE);
-    if (!canPlaceFloor(rec.def, x, z, newRot, rec)) {
+    var applied = null;
+    // Try 90° first; large pieces often cannot fit sideways but a 180° turn keeps
+    // the same footprint, so fall back to that instead of refusing.
+    var candidates = [newRot, (rec.rot + Math.PI) % (Math.PI * 2)];
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var r2 = candidates[ci];
+      var f2 = footprint(rec.def, r2);
+      var x2 = clamp(rec.x, f2.w / 2 + EDGE, R.w - f2.w / 2 - EDGE);
+      var z2 = clamp(rec.z, f2.d / 2 + EDGE, R.d - f2.d / 2 - EDGE);
+      if (canPlaceFloor(rec.def, x2, z2, r2, rec)) {
+        applied = { rot: r2, x: x2, z: z2 };
+        break;
+      }
+    }
+    if (!applied) {
       toast('这里转不开，先挪一下');
       return;
     }
-    rec.x = x;
-    rec.z = z;
-    rec.rot = newRot;
-    rec.group.position.set(x, 0, z);
-    rec.group.rotation.y = newRot;
+    if (applied.rot !== newRot) toast('90° 放不下，已转 180°');
+    rec.x = applied.x;
+    rec.z = applied.z;
+    rec.rot = applied.rot;
+    rec.group.position.set(applied.x, 0, applied.z);
+    rec.group.rotation.y = applied.rot;
     rebuildNav();
     updateSelVisual();
     save();
@@ -1819,6 +1831,8 @@
     get weather() { return { data: state.weather, kind: PR.weather ? PR.weather.kind : null }; },
     act: function (name) { if (state.char) state.char.obj.play(name); },
     // Debug-only helper for the acceptance run: move a floor item without drag.
+    debugSelect: function (id) { var rec = null; for (var i = 0; i < state.items.length; i++) { if (state.items[i].def.id === id && !state.items[i].wall) { rec = state.items[i]; break; } } if (rec) select(rec); return !!rec; },
+    debugRotate: function () { ui.btnRotate.click(); },
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
     debugSleep: function () { if (state.char) { state.char.sleeping = true; state.char.obj.play('sleep'); } },
