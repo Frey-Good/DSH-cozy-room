@@ -345,6 +345,9 @@
       isVideo: true,
       play: function (name) {
         if (name === 'sleep') {
+          if (PR.roomlife && !PR.roomlife.canSleep()) {
+            try { PR.roomlife.tidyBed(); } catch (e) {}
+          }
           sleeping = true;
           sleepClock = 0;
           goto('sleepStart');

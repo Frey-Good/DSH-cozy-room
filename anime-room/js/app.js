@@ -694,6 +694,17 @@
 
   // save() runs after every layout change (place / drag / remove / rotate /
   // reset), so hooking refreshAnchors() there covers all of them.
+  function roomLifeItems() {
+    return state.items.map(function (it) {
+      return { id: it.uid, x: it.x, z: it.z, plant: it.def.id === 'plant' || it.def.id === 'palm' };
+    });
+  }
+
+  function roomLifeRefresh() {
+    if (!PR.roomlife) return;
+    PR.roomlife.setItems(roomLifeItems());
+  }
+
   function refreshAnchors() {
     if (!state.char || !state.char.obj || !state.char.obj.setAnchors) return false;
     var prev = state.char.anchors || null;
@@ -862,6 +873,13 @@
     var ch = state.char;
     if (!ch) return;
     wakeUp();
+    if (PR.roomlife) {
+      try {
+        if (PR.roomlife.trySlip(Math.floor(x), Math.floor(z))) {
+          if (PR.achievements) PR.achievements.event('slip');
+        }
+      } catch (e) {}
+    }
     var gx = Math.floor(x / CELL);
     var gz = Math.floor(z / CELL);
     if (isBlocked(gx, gz)) {
@@ -1608,6 +1626,7 @@
     } catch (err) { /* storage unavailable */ }
     refreshAnchors();
     if (PR.roomVisuals) PR.roomVisuals.setItems(state.items);
+    roomLifeRefresh();
   }
 
   function loadLayout() {
@@ -1745,6 +1764,20 @@
   function startGame() {
     createCharacter();
     if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
+    if (PR.roomlife) {
+      PR.roomlife.load();
+      roomLifeRefresh();
+      PR.roomlife.tick(Date.now());
+      PR.roomlife.subscribe(function () {
+        if (PR.roomVisuals) PR.roomVisuals.refresh();
+      });
+      var roomTick = function () { try { PR.roomlife.tick(Date.now()); } catch (e) {} };
+      if (PR.scheduler && PR.scheduler.every) PR.scheduler.every(60000, roomTick);
+      else setInterval(roomTick, 60000);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) roomTick();
+      });
+    }
     startStatusPoll();
     startCommandPoll();
     spawnCat();
@@ -1764,9 +1797,11 @@
       PR.bus.on('room:clean', refreshRoom);
       PR.bus.on('room:water', refreshRoom);
       PR.bus.on('room:tidy', refreshRoom);
+      PR.bus.on('room:feed', refreshRoom);
       PR.bus.on('room:slip', function () {
         if (PR.roomVisuals && state.char) PR.roomVisuals.slip(state.char.obj.root);
         say('哎哟…', 2000);
+        if (PR.achievements) PR.achievements.event('slip');
       });
     }
     if (PR.achievements) {
