@@ -28,6 +28,10 @@ Decorate it freely, watch a little blue-haired maid go about her day, and pull h
 dsh plugin install dsh-cozy-room
 ```
 
+> **Transparent theme required.** The room is a background layer (`z-index: -1`). If your DSH window paints an opaque background you will not see it. Install a transparent/glass theme (for example `dsh-plugin-wallpaper-engine` → 液态玻璃) and keep only **one** theme plugin controlling the background.
+
+> **需要透明主题。** 房间是背景层（`z-index: -1`），如果窗口背景是不透明的就看不到。请装一个透明/玻璃主题（例如 `dsh-plugin-wallpaper-engine` 的液态玻璃），并且**只开一个**管背景的主题插件。
+
 Then restart / refresh the Web UI (`Ctrl+R`). The room appears behind the chat; three buttons sit at the bottom-right:
 
 | Button | What it does |
