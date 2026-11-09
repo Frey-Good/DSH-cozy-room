@@ -77,7 +77,7 @@ PR.roomVisuals = (function () {
     for (var i = 0; i < f.length; i++) {
       var cell = f[i];
       var lv = Math.max(1, Math.min(3, cell.level || 1));
-      var mat = new T.MeshBasicMaterial({ map: dustTex, transparent: true, opacity: 0.45 + lv * 0.15, depthWrite: false });
+      var mat = new T.MeshBasicMaterial({ map: dustTex, color: 0xd9d0c0, transparent: true, opacity: 0.35 + lv * 0.12, depthWrite: false });
       var m = new T.Mesh(new T.PlaneGeometry(0.96, 0.96), mat);
       m.rotation.x = -Math.PI / 2;
       m.position.set((cell.gx + 0.5) * 1.0, 0.016 + lv * 0.001, (cell.gz + 0.5) * 1.0);
@@ -116,7 +116,7 @@ PR.roomVisuals = (function () {
       while (g.children.length < want) {
         var spot = new T.Mesh(
           new T.PlaneGeometry(0.16 + Math.random() * 0.22, 0.16 + Math.random() * 0.22),
-          new T.MeshBasicMaterial({ map: spotTex, transparent: true, opacity: 0.75, depthWrite: false })
+          new T.MeshBasicMaterial({ map: spotTex, color: 0xd9d0c0, transparent: true, opacity: 0.6, depthWrite: false })
         );
         spot.rotation.x = -Math.PI / 2;
         spot.position.set(

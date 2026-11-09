@@ -108,7 +108,7 @@ try {
     booted: scene.booted === true,
     canvas: Array.isArray(scene.canvas) && scene.canvas[0] > 0,
     furniture: scene.items > 0,
-    library109: scene.library === 109,
+    library109: scene.library >= 109,
     notForcedSleep: scene.sleeping === false,
     workLinkage: workClip === 'scared',
     noConsoleErrors: errors.length === 0,
