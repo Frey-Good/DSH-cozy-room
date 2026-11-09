@@ -736,6 +736,7 @@
     if (state.chore) return false;
     if (state.char.sleeping || state.working) return false;
     var now = Date.now();
+    if (!force && now < (state.chorePauseUntil || 0)) return false;
     if (!force && now < state.choreNextAt) return false;
     var task = null;
     try { task = PR.roomlife.nextTask({ working: state.working }); } catch (e) { return false; }
@@ -1954,11 +1955,15 @@
       state.phoneOpen = !!e.data.open;
       state.pageHidden = !!e.data.hidden;
       if (state.phoneOpen && !wasOpen && PR.achievements) PR.achievements.event('phoneOpen');
+      if (state.phoneOpen) state.chorePauseUntil = Date.now() + 5000;
       return;
     }
     if (e.data.type === 'cozy-room-say') {
       if (!state.char || !state.char.obj.playExtra) return;
       if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) return;
+      // talking to her pauses room chores (she is looking at the phone)
+      state.chore = null;
+      state.chorePauseUntil = Date.now() + 15000;
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
@@ -1971,8 +1976,8 @@
         setTimeout(function () {
           var userText = String(e.data.text || '');
           var line = PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']);
-          say(line);
           if (PR.achievements) PR.achievements.event('reply');
+          say(line);
         }, 5600);
       }, pause);
       return;
@@ -2020,6 +2025,8 @@
     }
     if (e.data.type === 'cozy-room-action') {
       if (location.protocol !== 'http:') return;
+      state.chore = null;
+      state.chorePauseUntil = Date.now() + 12000;
       if (state.char && state.char.obj.playExtra) state.char.obj.playExtra(e.data.id);
       return;
     }
