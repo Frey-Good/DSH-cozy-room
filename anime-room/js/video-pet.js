@@ -368,18 +368,14 @@
       },
       setWorkState: function (st) {
         if (Date.now() < manualUntil) return;
+        // Asleep: she stays in bed. Work can happen without her.
+        if (sleeping) return;
         st = st || 'idle';
         if (st === workState) return;
         workState = st;
         working = st !== 'idle';
         if (!working) {
           if (isWork(current) || current === 'cheer' || current === 'scared') finishAction();
-          return;
-        }
-        if (sleeping) {
-          sleeping = false;
-          sleepClock = 0;
-          goto('wake');
           return;
         }
         goto(workClip());
@@ -531,14 +527,8 @@
           blob.material.opacity = fade * 0.9;
         }
 
-        if (sleeping && (current === 'sleepStart' || current === 'sleepLoop')) {
-          sleepClock += dt;
-          if (sleepClock > 180 && phase !== 'night') {
-            sleeping = false;
-            sleepClock = 0;
-            goto('wake');
-          }
-        }
+        // She sleeps until someone wakes her (click / recall / summon).
+        // No auto-wake, and DSH work does not wake her either.
 
         if (!pending && fadeDir === 0 && current === 'idle' && !sleeping && !working && Date.now() > manualUntil) {
           ambientClock += dt;
