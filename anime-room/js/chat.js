@@ -109,8 +109,34 @@
     return contextual();
   }
 
+  function replyAsync(text) {
+    var body = { text: String(text || '') };
+    try {
+      body.memories = (PR.memory ? PR.memory.search(text, 8) : []).map(function (m) { return m.text; });
+      var recent = [];
+      if (PR.memory) {
+        PR.memory.list().slice(-8).forEach(function (m) { if (m.kind === 'chat') recent.push(m.text); });
+      }
+      body.recent = recent;
+      var st = [];
+      if (PR.weather && PR.weather.kind) st.push('外面' + (PR.weather.kind === 'rain' ? '在下雨' : PR.weather.kind === 'snow' ? '在下雪' : '天气' + PR.weather.kind));
+      body.state = st.join('；');
+    } catch (e) {}
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+    return fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined,
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      return j && j.ok && j.text ? j.text : null;
+    }).catch(function () { return null; }).finally(function () { if (timer) clearTimeout(timer); });
+  }
+
   PR.chat = {
     reply: reply,
+    replyAsync: replyAsync,
     rules: RULES,
     setModel: function (fn) { modelFn = typeof fn === 'function' ? fn : null; },
   };

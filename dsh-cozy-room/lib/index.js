@@ -113,6 +113,63 @@ async function llmSeed(ctx, birth) {
   }
 }
 
+function readSelfText() {
+  try { return fs.readFileSync(SELF_FILE, 'utf8'); } catch { return ''; }
+}
+
+function timeLine() {
+  const now = new Date();
+  const h = now.getHours();
+  const slot = h >= 23 ? '深夜' : h >= 19 ? '晚上' : h >= 17 ? '傍晚' : h >= 13 ? '下午' : h >= 11 ? '中午' : h >= 9 ? '上午' : h >= 7 ? '早上' : h >= 5 ? '清晨' : '凌晨';
+  return `${now.getMonth() + 1}月${now.getDate()}日 ${slot} ${String(h).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+async function chatReply(ctx, body) {
+  const llm = ctx.llm;
+  if (!llm || typeof llm.stream !== 'function') return { ok: false, reason: 'llm-missing' };
+  const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
+  if (!sel || !sel.provider || !sel.model) return { ok: false, reason: 'model-missing' };
+
+  const selfText = readSelfText();
+  const mem = Array.isArray(body.memories) ? body.memories.slice(0, 10).map((x) => String(x).slice(0, 80)) : [];
+  const recent = Array.isArray(body.recent) ? body.recent.slice(-6).map((x) => String(x).slice(0, 60)) : [];
+  const system = [
+    selfText || '我是一个刚住进这个房间的人，还在认识自己。',
+    '',
+    '说话规则：用第一人称，像日常聊天，1–2 句，40 字以内；不写动作描写，不用括号，不提“人设/设定”。',
+    `现在：${timeLine()}${body.state ? '；' + body.state : ''}`,
+    mem.length ? '我记得：\n- ' + mem.join('\n- ') : '',
+    recent.length ? '最近聊过：\n' + recent.join('\n') : '',
+  ].filter(Boolean).join('\n');
+
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 30000);
+  const out = [];
+  try {
+    for await (const chunk of llm.stream({
+      provider: sel.provider,
+      model: sel.model,
+      sessionId: 'dsh-cozy-room:chat',
+      system,
+      messages: [{
+        role: 'user',
+        content: [{ type: 'text', text: String(body.text || '').slice(0, 500) }],
+        source: { kind: 'user' },
+      }],
+      temperature: 1,
+      reasoningEffort: 'off',
+      signal: ac.signal,
+    })) streamText(chunk, out);
+  } catch (error) {
+    return { ok: false, reason: 'generate-error', message: String(error && error.message) };
+  } finally {
+    clearTimeout(timer);
+  }
+  const text = out.join('').trim().replace(/^["“]|["”]$/g, '');
+  if (!text) return { ok: false, reason: 'empty' };
+  return { ok: true, text: text.slice(0, 120) };
+}
+
 async function ensureIdentity(ctx) {
   const cached = readIdentity();
   if (cached) return cached;
@@ -242,6 +299,27 @@ export function apply(ctx) {
         }
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(info));
+        return;
+      }
+
+      if (file === '/chat' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 20000) req.destroy(); });
+        req.on('end', () => {
+          let body = {};
+          try { body = JSON.parse(raw || '{}'); } catch (e) {}
+          chatReply(ctx, body)
+            .then((result) => {
+              if (res.writableEnded || res.headersSent) return;
+              res.writeHead(result.ok ? 200 : 502, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify(result));
+            })
+            .catch((error) => {
+              if (res.writableEnded || res.headersSent) return;
+              res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify({ ok: false, reason: String(error && error.message) }));
+            });
+        });
         return;
       }
 

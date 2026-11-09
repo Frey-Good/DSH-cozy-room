@@ -1980,6 +1980,8 @@
       if (PR.memory) {
         PR.memory.add('chat', 'ta 说「' + String(e.data.text || '').slice(0, 60) + '」', 5, ['聊天']);
       }
+      var userText = String(e.data.text || '');
+      var pendingReply = (PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText) : null;
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
@@ -1990,11 +1992,20 @@
         state.char.obj.playExtra(phoneClip);
         // Reply lands when the clip reaches its send beat.
         setTimeout(function () {
-          var userText = String(e.data.text || '');
-          var line = PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']);
-          if (PR.achievements) PR.achievements.event('reply');
-          if (PR.memory) PR.memory.add('chat', '我说「' + line + '」', 4, ['聊天']);
-          say(line);
+          var settle = false;
+          var finish = function (line) {
+            if (settle) return;
+            settle = true;
+            if (PR.achievements) PR.achievements.event('reply');
+            if (PR.memory) PR.memory.add('chat', '我说「' + line + '」', 4, ['聊天']);
+            say(line);
+          };
+          var fallback = function () {
+            finish(PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']));
+          };
+          if (!pendingReply) return fallback();
+          pendingReply.then(function (text) { if (text) finish(text); });
+          setTimeout(function () { if (!settle) fallback(); }, 2600);
         }, 5600);
       }, pause);
       return;
