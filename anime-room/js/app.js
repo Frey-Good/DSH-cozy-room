@@ -1935,14 +1935,15 @@
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
     debugPlayExtra: function (id) { return state.char && state.char.obj.playExtra ? state.char.obj.playExtra(id) : false; },
-    debugDust: function () {
+    debugDust: function (lv) {
       if (!PR.store) return null;
+      var level = Math.max(1, Math.min(3, lv || 1));
       var s = PR.store.state;
       s.room = s.room || { dust: { floor: [], items: [] }, plants: [], bed: { tidyAt: 0 }, cat: { fedAt: 0 } };
       s.room.dust = s.room.dust || { floor: [], items: [] };
-      s.room.dust.floor = [{ gx: 3, gz: 4, level: 1 }, { gx: 5, gz: 5, level: 1 }];
-      s.room.dust.items = state.items.slice(0, 2).map(function (it) { return { id: it.uid, level: 1 }; });
-      s.room.plants = state.items.filter(function (it) { return it.def.id === 'plant'; }).map(function (it) { return { id: it.uid, water: 0 }; });
+      s.room.dust.floor = [{ gx: 3, gz: 4, level: level }, { gx: 5, gz: 5, level: level }];
+      s.room.dust.items = state.items.slice(0, 3).map(function (it) { return { id: it.uid, level: level }; });
+      s.room.plants = state.items.filter(function (it) { return it.def.id === 'plant' || it.def.id === 'palm'; }).map(function (it) { return { id: it.uid, water: Math.max(0, 3 - level) }; });
       PR.store.save();
       if (PR.roomVisuals) PR.roomVisuals.refresh();
       return s.room;
