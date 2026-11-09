@@ -744,11 +744,11 @@
     if (!spot) return false;
 
     state.chore = { kind: task.kind, ref: task.ref, startedAt: now };
+    state.allCleanAt = 0;
     if (state.char.obj && state.char.obj.playExtra && CHORE_CLIP[task.kind]) {
       state.char.obj.playExtra(CHORE_CLIP[task.kind]);
     }
     teleportTo(spot.x, spot.z);
-    choreSay(task.kind);
     setTimeout(function () {
       var c = state.chore;
       state.chore = null;
@@ -759,6 +759,24 @@
         else if (c.kind === 'water') PR.roomlife.water(c.ref && (c.ref.id || c.ref));
         else if (c.kind === 'tidy') PR.roomlife.tidyBed();
         else if (c.kind === 'feed') PR.roomlife.feedCat();
+      } catch (e) {}
+      if (PR.roomVisuals && PR.roomVisuals.celebrate) {
+        try { PR.roomVisuals.celebrate(c.kind, c.ref); } catch (e) {}
+      }
+      // everything done: stretch + happy hop, once per cleanup round
+      try {
+        var nt = PR.roomlife.nextTask();
+        var busy = nt && ['clean', 'water', 'tidy', 'feed'].indexOf(nt.kind) >= 0;
+        if (!busy && !state.allCleanAt) {
+          state.allCleanAt = Date.now();
+          if (state.char && state.char.obj && state.char.obj.playExtra) {
+            state.char.obj.playExtra('超大伸懒腰');
+            setTimeout(function () {
+              if (state.char && state.char.obj) state.char.obj.playExtra('点击回应-开心跃动');
+            }, 2200);
+          }
+          say('都收拾好啦。', 2400);
+        }
       } catch (e) {}
     }, 2800);
     return true;

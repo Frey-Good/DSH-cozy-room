@@ -171,6 +171,99 @@ PR.roomVisuals = (function () {
     }
   }
 
+  // ------------------------------------------------------------- sparkles
+  function sparkleAt(x, y, z) {
+    var n = 20;
+    var geo = new T.BufferGeometry();
+    var pos = new Float32Array(n * 3);
+    var vel = [];
+    for (var i = 0; i < n; i++) {
+      pos[i * 3] = x + (Math.random() - 0.5) * 0.35;
+      pos[i * 3 + 1] = y + Math.random() * 0.15;
+      pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.35;
+      vel.push({
+        x: (Math.random() - 0.5) * 0.35,
+        y: 0.35 + Math.random() * 0.5,
+        z: (Math.random() - 0.5) * 0.35,
+      });
+    }
+    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+    var mat = new T.PointsMaterial({
+      color: 0xfff4cf, size: 0.11, transparent: true, opacity: 1,
+      depthWrite: false, blending: T.AdditiveBlending,
+    });
+    var pts = new T.Points(geo, mat);
+    scene.add(pts);
+    var t0 = performance.now();
+    (function fly() {
+      var k = (performance.now() - t0) / 900;
+      if (k >= 1) {
+        scene.remove(pts);
+        geo.dispose(); mat.dispose();
+        return;
+      }
+      var arr = geo.attributes.position.array;
+      for (var i = 0; i < n; i++) {
+        arr[i * 3] += vel[i].x * 0.016;
+        arr[i * 3 + 1] += vel[i].y * 0.016;
+        arr[i * 3 + 2] += vel[i].z * 0.016;
+        vel[i].y -= 0.5 * 0.016;
+      }
+      geo.attributes.position.needsUpdate = true;
+      mat.opacity = 1 - k;
+      requestAnimationFrame(fly);
+    })();
+  }
+
+  function fadeFloor(gx, gz) {
+    var kids = floorLayer.children.slice();
+    for (var i = 0; i < kids.length; i++) {
+      var c = kids[i];
+      if (Math.abs(c.position.x - (gx + 0.5)) > 0.01) continue;
+      if (Math.abs(c.position.z - (gz + 0.5)) > 0.01) continue;
+      (function (mesh) {
+        var t0 = performance.now();
+        var op = mesh.material.opacity;
+        (function fade() {
+          var k = (performance.now() - t0) / 320;
+          if (k >= 1) { floorLayer.remove(mesh); return; }
+          mesh.material.opacity = op * (1 - k);
+          requestAnimationFrame(fade);
+        })();
+      })(c);
+    }
+  }
+
+  function bounce(group) {
+    var t0 = performance.now();
+    var base = group.scale.x || 1;
+    (function tick() {
+      var k = (performance.now() - t0) / 420;
+      if (k >= 1) { group.scale.setScalar(base); return; }
+      group.scale.setScalar(base * (1 + Math.sin(k * Math.PI) * 0.06));
+      requestAnimationFrame(tick);
+    })();
+  }
+
+  function celebrate(kind, ref) {
+    if (!scene) return;
+    if (kind === 'clean' && ref && typeof ref.gx === 'number' && typeof ref.gz === 'number') {
+      fadeFloor(ref.gx, ref.gz);
+      sparkleAt((ref.gx + 0.5), 0.08, (ref.gz + 0.5));
+      return;
+    }
+    if (!ref) return;
+    var id = ref.id || ref;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.uid !== id && it.def.id !== id) continue;
+      var box = new T.Box3().setFromObject(it.group);
+      sparkleAt((box.min.x + box.max.x) / 2, box.max.y + 0.05, (box.min.z + box.max.z) / 2);
+      if (kind === 'water' || kind === 'tidy') bounce(it.group);
+      return;
+    }
+  }
+
   function slip(root) {
     if (!root) return;
     var t0 = performance.now();
@@ -183,5 +276,5 @@ PR.roomVisuals = (function () {
     })();
   }
 
-  return { init: init, setItems: setItems, refresh: refresh, slip: slip };
+  return { init: init, setItems: setItems, refresh: refresh, slip: slip, celebrate: celebrate };
 })();
