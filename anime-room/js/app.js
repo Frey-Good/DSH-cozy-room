@@ -1715,6 +1715,26 @@
     } catch (err) { /* storage unavailable */ }
     refreshAnchors();
     if (PR.roomVisuals) PR.roomVisuals.setItems(state.items);
+    if (PR.mind) PR.mind.setHandlers({
+      sleep: function () {
+        if (!state.char) return;
+        state.char.sleeping = true;
+        state.char.obj.play('sleep');
+      },
+      clean: function () {
+        var list = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList().filter(function (x) { return x.kind === 'floor'; }) : [];
+        if (list.length && PR.roomlife) PR.roomlife.clean('floor', list[0]);
+        if (state.char) state.char.obj.playExtra('碎碎念-擦桌碎碎念');
+      },
+      water: function () {
+        var room = PR.store && PR.store.state && PR.store.state.room;
+        var plant = room && room.plants && room.plants[0];
+        if (plant && PR.roomlife) PR.roomlife.water(plant.id);
+        if (state.char) state.char.obj.playExtra('原地蹲下玩玩具汽车');
+      },
+      feed: function () { if (PR.roomlife) PR.roomlife.feedCat(); },
+      tidy: function () { if (PR.roomlife) PR.roomlife.tidyBed(); },
+    });
     roomLifeRefresh();
   }
 
@@ -1981,7 +2001,8 @@
         PR.memory.add('chat', 'ta 说「' + String(e.data.text || '').slice(0, 60) + '」', 5, ['聊天']);
       }
       var userText = String(e.data.text || '');
-      var pendingReply = (PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText) : null;
+      var cmd = PR.mind ? PR.mind.handle(userText) : null;
+      var pendingReply = cmd ? Promise.resolve(cmd.line) : ((PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText) : null);
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
