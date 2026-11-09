@@ -1389,6 +1389,7 @@
           '.dsh-phone-dot.on{display:block}',
           '.dsh-phone-hint{margin-top:auto;text-align:center;color:#8a93a3;font-size:11px}',
           '.dsh-phone-ach{flex:1;min-height:0;overflow-y:auto;padding:10px 12px;background:#ededed}',
+          '.dsh-phone-ach.hidden{display:none}',
           '.dsh-phone-ach-list{display:flex;flex-direction:column;gap:8px}',
           '.dsh-phone-ach-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:#fff;opacity:.55}',
           '.dsh-phone-ach-row.on{opacity:1}',
