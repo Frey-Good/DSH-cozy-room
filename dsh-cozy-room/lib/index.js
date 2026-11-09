@@ -369,6 +369,10 @@ export function apply(ctx) {
     }
   });
 
+  server.on('error', (error) => {
+    ctx.logger?.warn?.('[dsh-cozy-room] server error: ' + (error && error.message));
+  });
+
   server.on('clientError', (error, socket) => {
     try { socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); } catch { /* ignore */ }
   });
