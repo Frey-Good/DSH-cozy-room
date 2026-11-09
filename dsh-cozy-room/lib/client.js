@@ -338,6 +338,12 @@
             }
             return;
           }
+          if (event.data.type === 'cozy-room-achievements') {
+            phoneData.achievements = Array.isArray(event.data.items) ? event.data.items : [];
+            savePhoneData();
+            if (phoneEl && phoneView === 'ach') renderAchievements();
+            return;
+          }
           if (event.data.type === 'cozy-room-speech') {
             addPhoneMessage(String(event.data.text || ''), 'her');
             return;
@@ -1353,6 +1359,7 @@
           let d = null;
           try { d = JSON.parse(localStorage.getItem(PHONE_KEY) || 'null'); } catch (error) {}
           if (!d || !Array.isArray(d.messages)) d = { messages: [], unread: 0 };
+          if (!Array.isArray(d.achievements)) d.achievements = [];
           return d;
         })();
 
@@ -1381,6 +1388,14 @@
           '.dsh-phone-dot{position:absolute;top:-5px;right:6px;min-width:18px;height:18px;border-radius:9px;background:#fa5151;color:#fff;font-size:11px;line-height:18px;text-align:center;padding:0 5px;display:none}',
           '.dsh-phone-dot.on{display:block}',
           '.dsh-phone-hint{margin-top:auto;text-align:center;color:#8a93a3;font-size:11px}',
+          '.dsh-phone-ach{flex:1;min-height:0;overflow-y:auto;padding:10px 12px;background:#ededed}',
+          '.dsh-phone-ach-list{display:flex;flex-direction:column;gap:8px}',
+          '.dsh-phone-ach-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:#fff;opacity:.55}',
+          '.dsh-phone-ach-row.on{opacity:1}',
+          '.dsh-phone-ach-badge{width:22px;height:22px;border-radius:11px;background:#e6e6e6;color:#999;font-size:12px;line-height:22px;text-align:center;flex:none}',
+          '.dsh-phone-ach-row.on .dsh-phone-ach-badge{background:#07c160;color:#fff}',
+          '.dsh-phone-ach-row b{display:block;font-size:13px;color:#1a1a1a}',
+          '.dsh-phone-ach-row span{display:block;font-size:11px;color:#8a8a8a;margin-top:2px}',
           '.dsh-phone-chat{flex:1;min-height:0;display:flex;flex-direction:column}',
           '.dsh-phone-list{flex:1;overflow-y:auto;padding:10px 10px 14px}',
           '.dsh-phone-time{text-align:center;margin:10px 0 6px;color:#9a9a9a;font-size:11px}',
@@ -1488,11 +1503,56 @@
           renderPhone();
         }
 
+        function renderAchievements() {
+          if (!phoneEl) return;
+          const list = phoneEl.querySelector('.dsh-phone-ach-list');
+          if (!list) return;
+          const items = phoneData.achievements || [];
+          list.innerHTML = '';
+          if (!items.length) {
+            const empty = document.createElement('div');
+            empty.className = 'dsh-phone-time';
+            empty.textContent = '还没有成就';
+            list.appendChild(empty);
+            return;
+          }
+          items.forEach(function (a) {
+            const row = document.createElement('div');
+            row.className = 'dsh-phone-ach-row' + (a.unlocked ? ' on' : '');
+            const badge = document.createElement('span');
+            badge.className = 'dsh-phone-ach-badge';
+            badge.textContent = a.unlocked ? '✓' : '○';
+            const box = document.createElement('div');
+            const name = document.createElement('b');
+            name.textContent = a.name;
+            const desc = document.createElement('span');
+            desc.textContent = a.desc;
+            box.appendChild(name);
+            box.appendChild(desc);
+            row.appendChild(badge);
+            row.appendChild(box);
+            list.appendChild(row);
+          });
+        }
+
+        function showAchievements() {
+          phoneView = 'ach';
+          if (!phoneEl) return;
+          phoneEl.querySelector('.dsh-phone-home').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-chat').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-ach').classList.remove('hidden');
+          phoneEl.querySelector('.dsh-phone-back').classList.add('show');
+          setPhoneTitle('成就');
+          renderAchievements();
+        }
+
         function phoneHome() {
           phoneView = 'home';
           if (!phoneEl) return;
           phoneEl.querySelector('.dsh-phone-home').classList.remove('hidden');
           phoneEl.querySelector('.dsh-phone-chat').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-ach').classList.add('hidden');
+          setPhoneTitle('她');
           phoneEl.querySelector('.dsh-phone-back').classList.remove('show');
           phoneEl.querySelector('.dsh-phone-clock').textContent = fmtPhoneTime(Date.now());
         }
@@ -1501,7 +1561,9 @@
           phoneView = 'chat';
           if (!phoneEl) return;
           phoneEl.querySelector('.dsh-phone-home').classList.add('hidden');
+          phoneEl.querySelector('.dsh-phone-ach').classList.add('hidden');
           phoneEl.querySelector('.dsh-phone-chat').classList.remove('hidden');
+          setPhoneTitle('她');
           phoneEl.querySelector('.dsh-phone-back').classList.add('show');
           phoneData.unread = 0;
           savePhoneData();
@@ -1524,12 +1586,14 @@
             '<div class="dsh-phone-clock">--:--</div>' +
             '<div class="dsh-phone-apps">' +
             '<button class="dsh-phone-app" data-app="chat"><span class="ic">💬</span><span class="nm">聊天</span><b class="dsh-phone-dot" data-dot></b></button>' +
+            '<button class="dsh-phone-app" data-app="ach"><span class="ic">🏆</span><span class="nm">成就</span></button>' +
             '<button class="dsh-phone-app off"><span class="ic">🖼</span><span class="nm">相册</span></button>' +
             '<button class="dsh-phone-app off"><span class="ic">🌱</span><span class="nm">菜地</span></button>' +
             '<button class="dsh-phone-app off"><span class="ic">✈️</span><span class="nm">旅行</span></button>' +
             '</div>' +
             '<div class="dsh-phone-hint">更多 App 还在路上</div>' +
             '</div>' +
+            '<div class="dsh-phone-ach hidden"><div class="dsh-phone-ach-list"></div></div>' +
             '<div class="dsh-phone-chat hidden">' +
             '<div class="dsh-phone-list"></div>' +
             '<div class="dsh-phone-foot">' +
@@ -1541,6 +1605,7 @@
           phoneEl.querySelector('.dsh-phone-close').addEventListener('click', closePhone);
           phoneEl.querySelector('.dsh-phone-back').addEventListener('click', phoneHome);
           phoneEl.querySelector('[data-app="chat"]').addEventListener('click', phoneChat);
+          phoneEl.querySelector('[data-app="ach"]').addEventListener('click', showAchievements);
           phoneEl.querySelector('.dsh-phone-send').addEventListener('click', sendPhone);
           phoneEl.querySelector('.dsh-phone-foot input').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); sendPhone(); }

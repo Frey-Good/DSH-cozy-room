@@ -1754,6 +1754,15 @@
     syncAmbient();
     setInterval(tickClock, 15000);
     if (PR.director) PR.director.start();
+    if (PR.achievements) {
+      PR.achievements.start();
+      if (PR.bus) {
+        PR.bus.on('pet:touch', function () { PR.achievements.event('touch'); });
+        PR.bus.on('pet:sleep', function () { PR.achievements.event('sleep'); });
+        PR.bus.on('pet:work:start', function () { PR.achievements.event('work'); });
+        PR.bus.on('weather:change', function (p) { PR.achievements.event('weather', p); });
+      }
+    }
     bindUI();
     refreshCatalog();
     updateHint();
@@ -1801,8 +1810,10 @@
       return;
     }
     if (e.data.type === 'cozy-room-phone-state') {
+      var wasOpen = state.phoneOpen;
       state.phoneOpen = !!e.data.open;
       state.pageHidden = !!e.data.hidden;
+      if (state.phoneOpen && !wasOpen && PR.achievements) PR.achievements.event('phoneOpen');
       return;
     }
     if (e.data.type === 'cozy-room-say') {
@@ -1819,6 +1830,7 @@
         // Reply lands when the clip reaches its send beat.
         setTimeout(function () {
           say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
+          if (PR.achievements) PR.achievements.event('reply');
         }, 5600);
       }, pause);
       return;
