@@ -694,6 +694,76 @@
 
   // save() runs after every layout change (place / drag / remove / rotate /
   // reset), so hooking refreshAnchors() there covers all of them.
+  var CHORE_CLIP = {
+    clean: '碎碎念-擦桌碎碎念',
+    water: '原地蹲下玩玩具汽车',
+    tidy: '工作状态-清点归档',
+    feed: '原地蹲下玩玩具汽车',
+  };
+  var CHORE_LINE = {
+    clean: ['这里有点脏…', '擦一擦。', '灰尘好多。'],
+    water: ['该浇水了。', '有点蔫了…', '喝点水吧。'],
+    tidy: ['床单该理一理了。', '铺平一点。'],
+    feed: ['猫饿了。', '来吃饭啦。'],
+  };
+
+  function choreSay(kind) {
+    var lines = CHORE_LINE[kind] || [''];
+    say(lines[Math.floor(Math.random() * lines.length)], 2200);
+  }
+
+  function choreSpot(task) {
+    var ch = state.char;
+    if (task.kind === 'tidy' && ch && ch.anchors) return { x: ch.anchors.bed.x, z: ch.anchors.bed.z };
+    if (task.kind === 'feed' && ch && ch.anchors) return { x: ch.anchors.cat.x, z: ch.anchors.cat.z };
+    if (task.kind === 'water') {
+      var id = task.ref && (task.ref.id || task.ref);
+      for (var i = 0; i < state.items.length; i++) {
+        if (state.items[i].uid === id) return { x: state.items[i].x, z: state.items[i].z };
+      }
+    }
+    if (task.kind === 'clean') {
+      var list = PR.roomlife.dirtyList ? PR.roomlife.dirtyList() : [];
+      for (var j = 0; j < list.length; j++) {
+        if (list[j].kind === 'floor' && list[j].spot) return { x: list[j].spot.x, z: list[j].spot.z };
+      }
+    }
+    return null;
+  }
+
+  function maybeChore(force) {
+    if (!PR.roomlife || !state.char || !state.present) return false;
+    if (state.chore) return false;
+    if (state.char.sleeping || state.working) return false;
+    var now = Date.now();
+    if (!force && now < state.choreNextAt) return false;
+    var task = null;
+    try { task = PR.roomlife.nextTask({ working: state.working }); } catch (e) { return false; }
+    if (!task || ['clean', 'water', 'tidy', 'feed'].indexOf(task.kind) < 0) return false;
+    var spot = choreSpot(task);
+    if (!spot) return false;
+
+    state.chore = { kind: task.kind, ref: task.ref, startedAt: now };
+    if (state.char.obj && state.char.obj.playExtra && CHORE_CLIP[task.kind]) {
+      state.char.obj.playExtra(CHORE_CLIP[task.kind]);
+    }
+    teleportTo(spot.x, spot.z);
+    choreSay(task.kind);
+    setTimeout(function () {
+      var c = state.chore;
+      state.chore = null;
+      state.choreNextAt = Date.now() + 45000;
+      if (!c || !PR.roomlife) return;
+      try {
+        if (c.kind === 'clean') PR.roomlife.clean('floor', c.ref);
+        else if (c.kind === 'water') PR.roomlife.water(c.ref && (c.ref.id || c.ref));
+        else if (c.kind === 'tidy') PR.roomlife.tidyBed();
+        else if (c.kind === 'feed') PR.roomlife.feedCat();
+      } catch (e) {}
+    }, 2800);
+    return true;
+  }
+
   function roomLifeItems() {
     return state.items.map(function (it) {
       return { id: it.uid, x: it.x, z: it.z, plant: it.def.id === 'plant' || it.def.id === 'palm' };
@@ -1777,6 +1847,8 @@
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) roomTick();
       });
+      setInterval(function () { maybeChore(false); }, 12000);
+      setTimeout(function () { maybeChore(false); }, 8000);
     }
     startStatusPoll();
     startCommandPoll();
@@ -1970,6 +2042,17 @@
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
     debugPlayExtra: function (id) { return state.char && state.char.obj.playExtra ? state.char.obj.playExtra(id) : false; },
+    debugChore: function (kind) {
+      if (!PR.roomlife) return null;
+      var r = PR.roomlife.load() || PR.store.state.room;
+      r.dust.floor = [{ gx: 2, gz: 5, level: 3 }, { gx: 5, gz: 2, level: 2 }, { gx: 6, gz: 6, level: 1 }];
+      r.dust.items = [];
+      var water = kind === 'clean' ? 3 : 0;
+      r.plants = (r.plants || []).map(function (p) { return { id: p.id, water: water }; });
+      PR.store.save();
+      if (PR.roomVisuals) PR.roomVisuals.refresh();
+      return maybeChore(true);
+    },
     debugDust: function (lv) {
       if (!PR.store) return null;
       var level = Math.max(1, Math.min(3, lv || 1));
