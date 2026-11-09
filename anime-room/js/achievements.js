@@ -6,6 +6,7 @@
 
   var DEFS = [
     { id: 'firstTouch', name: '初次见面', desc: '第一次摸她' },
+    { id: 'slip', name: '被自己的房间绊倒', desc: '踩到脏地滑了一跤' },
     { id: 'firstSleep', name: '睡颜', desc: '看她睡着一次' },
     { id: 'firstReply', name: '悄悄话', desc: '她第一次回你消息' },
     { id: 'work10', name: '工作伙伴', desc: '她陪你工作 10 次' },
@@ -75,6 +76,8 @@
     } else if (name === 'phoneOpen') {
       var p = bump('phoneOpen', 1);
       if (p >= 10) unlock('phone10');
+    } else if (name === 'slip') {
+      unlock('slip');
     } else if (name === 'reply') {
       unlock('firstReply');
     } else if (name === 'weather') {
