@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { computeBirth, fallbackSeed, seedPrompt } from './identity.js';
 
 export const name = 'dsh-cozy-room';
-export const inject = [];
+export const inject = ['llm', 'agentDefaultModel'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -230,22 +230,30 @@ export function apply(ctx) {
       }
 
       if (file === '/identity/debug') {
+        let info = {};
+        try {
+          info = {
+            llm: typeof ctx.llm,
+            model: typeof ctx.agentDefaultModel,
+            selection: (ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection) ? ctx.agentDefaultModel.currentSelection() : null,
+          };
+        } catch (error) {
+          info = { error: String(error && error.message) };
+        }
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({
-          llm: typeof ctx.llm,
-          model: typeof ctx.agentDefaultModel,
-          selection: (ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection) ? ctx.agentDefaultModel.currentSelection() : null,
-        }));
+        res.end(JSON.stringify(info));
         return;
       }
 
       if (file === '/identity.json' || file === '/identity') {
         ensureIdentity(ctx)
           .then((identity) => {
+            if (res.writableEnded || res.headersSent) return;
             res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify(identity));
           })
           .catch((error) => {
+            if (res.writableEnded || res.headersSent) return;
             res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ error: String(error && error.message) }));
           });
@@ -274,9 +282,17 @@ export function apply(ctx) {
       res.writeHead(200, { ...cors, 'Content-Type': MIME[ext] || 'application/octet-stream' });
       fs.createReadStream(full).pipe(res);
     } catch (error) {
-      res.writeHead(500);
-      res.end(String(error));
+      try {
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        }
+        if (!res.writableEnded) res.end(String(error && error.message ? error.message : error));
+      } catch { /* the socket may already be gone */ }
     }
+  });
+
+  server.on('clientError', (error, socket) => {
+    try { socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); } catch { /* ignore */ }
   });
 
   const listen = (port) =>
