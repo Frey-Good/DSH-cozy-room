@@ -107,5 +107,26 @@ PR.memory = (function () {
     });
   }
 
-  return { add: add, list: all, decay: decay, search: search, load: load, persist: persist };
+  function reflect() {
+    var s = state();
+    if (!s) return Promise.resolve(false);
+    var list = all().slice().sort(function (a, b) {
+      return (b.importance + b.ts / 1e13) - (a.importance + a.ts / 1e13);
+    }).slice(0, 40).map(function (m) { return { text: m.text, importance: m.importance, ts: m.ts }; });
+    if (!list.length) return Promise.resolve(false);
+    return fetch('/reflect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memories: list }),
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) return false;
+      s.self = j.text;
+      s.lastReflect = Date.now();
+      add('reflection', '我重新想了想自己是什么样的人', 8, ['反思']);
+      persist();
+      return true;
+    }).catch(function () { return false; });
+  }
+
+  return { add: add, list: all, decay: decay, search: search, load: load, persist: persist, reflect: reflect };
 })();

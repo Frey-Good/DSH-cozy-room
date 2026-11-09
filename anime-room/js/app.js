@@ -1888,6 +1888,15 @@
         if (!document.hidden) roomTick();
       });
       setInterval(function () { maybeChore(false); }, 12000);
+      // memory housekeeping: daily decay + reflection
+      setInterval(function () { if (PR.memory) PR.memory.decay(); }, 6 * 3600 * 1000);
+      var reflectIfDue = function () {
+        if (!PR.memory) return;
+        var last = PR.store && PR.store.state ? (PR.store.state.lastReflect || 0) : 0;
+        if (Date.now() - last > 24 * 3600 * 1000) PR.memory.reflect();
+      };
+      setTimeout(reflectIfDue, 15000);
+      setInterval(reflectIfDue, 6 * 3600 * 1000);
       setTimeout(function () { maybeChore(false); }, 8000);
     }
     startStatusPoll();

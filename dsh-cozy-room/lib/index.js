@@ -170,6 +170,62 @@ async function chatReply(ctx, body) {
   return { ok: true, text: text.slice(0, 120) };
 }
 
+async function reflectSelf(ctx, body) {
+  const llm = ctx.llm;
+  const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
+  if (!llm || typeof llm.stream !== 'function' || !sel || !sel.provider || !sel.model) {
+    return { ok: false, reason: 'llm-missing' };
+  }
+  const mem = Array.isArray(body.memories) ? body.memories.slice(0, 40) : [];
+  const current = readSelfText();
+  const system = [
+    '你在更新一个人的「我是谁」。',
+    '只输出新的自我描述，不要解释、不要标题、不要列表符号以外的格式。',
+    '要求：以第一人称写 200–400 字；保留仍然成立的，改掉已经变化的；写出新的偏好、在意的事、和 ta 的关系；允许矛盾。',
+  ].join('\n');
+  const user = [
+    '现在的我：',
+    current || '（还没有）',
+    '',
+    '最近的经历：',
+    ...mem.map((m) => `- ${m.text}`),
+  ].join('\n');
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 30000);
+  const out = [];
+  try {
+    for await (const chunk of llm.stream({
+      provider: sel.provider,
+      model: sel.model,
+      sessionId: 'dsh-cozy-room:reflect',
+      system,
+      messages: [{ role: 'user', content: [{ type: 'text', text: user }], source: { kind: 'user' } }],
+      temperature: 0.8,
+      reasoningEffort: 'off',
+      signal: ac.signal,
+    })) streamText(chunk, out);
+  } catch (error) {
+    return { ok: false, reason: String(error && error.message) };
+  } finally {
+    clearTimeout(timer);
+  }
+  const text = out.join('').trim();
+  if (!text) return { ok: false, reason: 'empty' };
+  const identity = readIdentity() || {};
+  const head = [
+    '# 我是谁',
+    '',
+    identity.birthday ? `出生：${identity.birthday}（${identity.sign}，${identity.animal}年）` : '',
+    '',
+    text,
+    '',
+    `> 更新于 ${new Date().toLocaleString('zh-CN')}`,
+  ].filter((x) => x !== null).join('\n');
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(SELF_FILE, head, 'utf8');
+  return { ok: true, text };
+}
+
 async function ensureIdentity(ctx) {
   const cached = readIdentity();
   if (cached) return cached;
@@ -299,6 +355,25 @@ export function apply(ctx) {
         }
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(info));
+        return;
+      }
+
+      if (file === '/reflect' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 200000) req.destroy(); });
+        req.on('end', () => {
+          let body = {};
+          try { body = JSON.parse(raw || '{}'); } catch (e) {}
+          reflectSelf(ctx, body).then((result) => {
+            if (res.writableEnded || res.headersSent) return;
+            res.writeHead(result.ok ? 200 : 502, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(result));
+          }).catch((error) => {
+            if (res.writableEnded || res.headersSent) return;
+            res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, reason: String(error && error.message) }));
+          });
+        });
         return;
       }
 
