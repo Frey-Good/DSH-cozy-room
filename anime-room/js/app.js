@@ -1853,6 +1853,7 @@
   function startGame() {
     createCharacter();
     if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
+    if (PR.memory) PR.memory.load();
     if (PR.roomlife) {
       PR.roomlife.load();
       roomLifeRefresh();
@@ -1889,6 +1890,18 @@
       PR.bus.on('room:water', refreshRoom);
       PR.bus.on('room:tidy', refreshRoom);
       PR.bus.on('room:feed', refreshRoom);
+      if (PR.memory) {
+        PR.bus.on('room:clean', function () { PR.memory.add('action', '我把地擦干净了', 2, ['打扫']); });
+        PR.bus.on('room:water', function () { PR.memory.add('action', '我给花浇了水', 2, ['打扫']); });
+        PR.bus.on('room:tidy', function () { PR.memory.add('action', '我把床铺好了', 2, ['打扫']); });
+        PR.bus.on('room:feed', function () { PR.memory.add('action', '我喂了猫', 2, ['猫']); });
+        PR.bus.on('pet:sleep', function () { PR.memory.add('action', '我睡着了', 3, ['睡觉']); });
+        PR.bus.on('pet:wake', function () { PR.memory.add('action', '我醒了', 3, ['睡觉']); });
+        PR.bus.on('weather:change', function (e) {
+          PR.memory.add('event', '天气变成了' + ((e && e.kind) || '别的'), 2, ['天气']);
+        });
+        PR.bus.on('room:slip', function () { PR.memory.add('event', '我踩到脏地滑了一跤', 4, ['房间']); });
+      }
       PR.bus.on('room:slip', function () {
         if (PR.roomVisuals && state.char) PR.roomVisuals.slip(state.char.obj.root);
         say('哎哟…', 2000);
@@ -1964,6 +1977,9 @@
       // talking to her pauses room chores (she is looking at the phone)
       state.chore = null;
       state.chorePauseUntil = Date.now() + 15000;
+      if (PR.memory) {
+        PR.memory.add('chat', 'ta 说「' + String(e.data.text || '').slice(0, 60) + '」', 5, ['聊天']);
+      }
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
@@ -1977,6 +1993,7 @@
           var userText = String(e.data.text || '');
           var line = PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']);
           if (PR.achievements) PR.achievements.event('reply');
+          if (PR.memory) PR.memory.add('chat', '我说「' + line + '」', 4, ['聊天']);
           say(line);
         }, 5600);
       }, pause);
@@ -2078,6 +2095,7 @@
       if (PR.roomVisuals) PR.roomVisuals.refresh();
       return maybeChore(true);
     },
+    debugMemory: function () { return PR.memory ? PR.memory.list() : []; },
     debugDust: function (lv) {
       if (!PR.store) return null;
       var level = Math.max(1, Math.min(3, lv || 1));
