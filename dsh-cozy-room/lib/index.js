@@ -1,7 +1,9 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeBirth, fallbackSeed, seedPrompt } from './identity.js';
 
 export const name = 'dsh-cozy-room';
 export const inject = [];
@@ -33,6 +35,95 @@ const PKG_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_PORT = 8140;
 const BUILD_ID = 'dsh-cozy-room:1.1.0';
 const PORT_SCAN = 12;
+const DATA_DIR = process.env.DSH_COZY_ROOM_DATA || path.join(os.homedir(), '.dsh', 'cozy-room');
+const IDENTITY_FILE = path.join(DATA_DIR, 'identity.json');
+const SELF_FILE = path.join(DATA_DIR, 'self.md');
+
+function readIdentity() {
+  try { return JSON.parse(fs.readFileSync(IDENTITY_FILE, 'utf8')); } catch { return null; }
+}
+
+function writeIdentity(identity) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(IDENTITY_FILE, JSON.stringify(identity, null, 2), 'utf8');
+  const lines = [
+    '# 我是谁',
+    '',
+    `出生：${identity.birthday}（${identity.sign}，${identity.animal}年）`,
+    `八字：${identity.bazi.text}`,
+    '',
+    '最初的样子：',
+    ...identity.traits.map((t) => `- ${t}`),
+    '',
+    identity.line,
+    '',
+    '> 这只是开始，会被之后经历的事改写。',
+  ];
+  fs.writeFileSync(SELF_FILE, lines.join('\n'), 'utf8');
+}
+
+function streamText(chunk, out) {
+  if (!chunk || typeof chunk !== 'object') return;
+  if (typeof chunk.text === 'string') out.push(chunk.text);
+  if (Array.isArray(chunk.blocks)) {
+    for (const b of chunk.blocks) if (b && b.type === 'text' && typeof b.text === 'string') out.push(b.text);
+  }
+}
+
+async function llmSeed(ctx, birth) {
+  try {
+    const llm = ctx.llm;
+    if (!llm || typeof llm.stream !== 'function') return null;
+    const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
+    if (!sel || !sel.provider || !sel.model) return null;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 30000);
+    const out = [];
+    try {
+      for await (const chunk of llm.stream({
+        provider: sel.provider,
+        model: sel.model,
+        sessionId: 'dsh-cozy-room:identity',
+        system: '',
+        messages: [{
+          role: 'user',
+          content: [{ type: 'text', text: seedPrompt(birth) }],
+          source: { kind: 'user' },
+        }],
+        temperature: 1,
+        reasoningEffort: 'off',
+        signal: ac.signal,
+      })) streamText(chunk, out);
+    } finally {
+      clearTimeout(timer);
+    }
+    const raw = out.join('').trim();
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const parsed = JSON.parse(m[0]);
+    if (!Array.isArray(parsed.traits) || parsed.traits.length === 0) return null;
+    return {
+      traits: parsed.traits.map((t) => String(t).slice(0, 24)).slice(0, 6),
+      line: String(parsed.line || '').slice(0, 60),
+      source: 'llm',
+    };
+  } catch (error) {
+    ctx.logger?.warn?.('[dsh-cozy-room] identity seed failed: ' + (error && error.message));
+    return null;
+  }
+}
+
+async function ensureIdentity(ctx) {
+  const cached = readIdentity();
+  if (cached) return cached;
+  const when = process.env.DSH_COZY_ROOM_BIRTHDAY ? new Date(process.env.DSH_COZY_ROOM_BIRTHDAY) : new Date();
+  const birth = computeBirth(when);
+  let seed = await llmSeed(ctx, birth);
+  if (!seed) seed = fallbackSeed(birth.sign, birth.animal);
+  const identity = { ...birth, ...seed, createdAt: Date.now() };
+  writeIdentity(identity);
+  return identity;
+}
 
 function resolveRoot() {
   const here = (p) => p && fs.existsSync(path.join(p, 'index.html'));
@@ -112,6 +203,19 @@ export function apply(ctx) {
       if (file === '/health.json' || file === '/health') {
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ app: 'dsh-cozy-room', build: BUILD_ID, port: server.address()?.port ?? null }));
+        return;
+      }
+
+      if (file === '/identity.json' || file === '/identity') {
+        ensureIdentity(ctx)
+          .then((identity) => {
+            res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(identity));
+          })
+          .catch((error) => {
+            res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: String(error && error.message) }));
+          });
         return;
       }
 
