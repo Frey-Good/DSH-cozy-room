@@ -129,6 +129,7 @@
     var variant = opts.variant == null ? 0 : opts.variant;
     var group = def.build(variant);
     var rec = {
+      uid: 'it_' + (spawn._n = (spawn._n || 0) + 1),
       def: def,
       group: group,
       variant: variant,
@@ -1606,6 +1607,7 @@
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (err) { /* storage unavailable */ }
     refreshAnchors();
+    if (PR.roomVisuals) PR.roomVisuals.setItems(state.items);
   }
 
   function loadLayout() {
@@ -1742,6 +1744,7 @@
 
   function startGame() {
     createCharacter();
+    if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
     startStatusPoll();
     startCommandPoll();
     spawnCat();
@@ -1754,6 +1757,18 @@
     syncAmbient();
     setInterval(tickClock, 15000);
     if (PR.director) PR.director.start();
+    if (PR.roomVisuals) PR.roomVisuals.setItems(state.items);
+    if (PR.bus) {
+      var refreshRoom = function () { if (PR.roomVisuals) PR.roomVisuals.refresh(); };
+      PR.bus.on('room:dust', refreshRoom);
+      PR.bus.on('room:clean', refreshRoom);
+      PR.bus.on('room:water', refreshRoom);
+      PR.bus.on('room:tidy', refreshRoom);
+      PR.bus.on('room:slip', function () {
+        if (PR.roomVisuals && state.char) PR.roomVisuals.slip(state.char.obj.root);
+        say('哎哟…', 2000);
+      });
+    }
     if (PR.achievements) {
       PR.achievements.start();
       if (PR.bus) {
@@ -1920,6 +1935,18 @@
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
     debugPlayExtra: function (id) { return state.char && state.char.obj.playExtra ? state.char.obj.playExtra(id) : false; },
+    debugDust: function () {
+      if (!PR.store) return null;
+      var s = PR.store.state;
+      s.room = s.room || { dust: { floor: [], items: [] }, plants: [], bed: { tidyAt: 0 }, cat: { fedAt: 0 } };
+      s.room.dust = s.room.dust || { floor: [], items: [] };
+      s.room.dust.floor = [{ gx: 3, gz: 4, level: 1 }, { gx: 5, gz: 5, level: 1 }];
+      s.room.dust.items = state.items.slice(0, 2).map(function (it) { return { id: it.uid, level: 1 }; });
+      s.room.plants = state.items.filter(function (it) { return it.def.id === 'plant'; }).map(function (it) { return { id: it.uid, water: 0 }; });
+      PR.store.save();
+      if (PR.roomVisuals) PR.roomVisuals.refresh();
+      return s.room;
+    },
     debugPos: function () { return state.char && state.char.obj.getPos ? state.char.obj.getPos() : null; },
     debugSleep: function () { if (state.char) { state.char.sleeping = true; state.char.obj.play('sleep'); } },
     debugSetWorking: function (v) { state.working = !!v; if (state.char) state.char.obj.setWorking(!!v); },
