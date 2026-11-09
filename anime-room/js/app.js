@@ -1993,7 +1993,15 @@
     }
     if (e.data.type === 'cozy-room-say') {
       if (!state.char || !state.char.obj.playExtra) return;
-      if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) return;
+      if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) {
+        // Asleep: usually no reply (and no typing indicator), small chance to wake.
+        if (Math.random() < 0.08) {
+          wakeUp();
+        } else {
+          try { parent.postMessage({ type: 'cozy-room-typing', typing: false }, '*'); } catch (e) {}
+          return;
+        }
+      }
       // talking to her pauses room chores (she is looking at the phone)
       state.chore = null;
       state.chorePauseUntil = Date.now() + 15000;

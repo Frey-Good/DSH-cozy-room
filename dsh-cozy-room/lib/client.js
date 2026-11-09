@@ -344,6 +344,10 @@
             if (phoneEl && phoneView === 'ach') renderAchievements();
             return;
           }
+          if (event.data.type === 'cozy-room-typing') {
+            if (!event.data.typing) stopTyping();
+            return;
+          }
           if (event.data.type === 'cozy-room-speech') {
             addPhoneMessage(String(event.data.text || ''), 'her');
             return;
