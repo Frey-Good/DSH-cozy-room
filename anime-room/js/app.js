@@ -1919,6 +1919,8 @@
     debugRotate: function () { ui.btnRotate.click(); },
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
+    debugPlayExtra: function (id) { return state.char && state.char.obj.playExtra ? state.char.obj.playExtra(id) : false; },
+    debugPos: function () { return state.char && state.char.obj.getPos ? state.char.obj.getPos() : null; },
     debugSleep: function () { if (state.char) { state.char.sleeping = true; state.char.obj.play('sleep'); } },
     debugSetWorking: function (v) { state.working = !!v; if (state.char) state.char.obj.setWorking(!!v); },
     say: function (text, ms) { say(text, ms); },

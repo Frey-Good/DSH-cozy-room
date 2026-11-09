@@ -265,6 +265,7 @@
       if (!c) return;
       ambientClock = 0;
       if (c.where === 'here') {
+        if (pos === 'bed' && !sleeping) applyPose('home', false);
         playClip(key);
         return;
       }
@@ -422,6 +423,8 @@
         sleeping = false;
         workState = 'idle';
         working = false;
+        // A standing clip must never play on the bed: move back to a floor spot first.
+        if (pos === 'bed') applyPose('home', false);
         if (!clips[id]) addUrlClip(id, item.file, { where: 'here', next: 'home' });
         goto(id);
         return true;
