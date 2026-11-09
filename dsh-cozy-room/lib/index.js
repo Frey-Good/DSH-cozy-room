@@ -116,7 +116,14 @@ async function llmSeed(ctx, birth) {
 async function ensureIdentity(ctx) {
   const cached = readIdentity();
   if (cached) return cached;
-  const when = process.env.DSH_COZY_ROOM_BIRTHDAY ? new Date(process.env.DSH_COZY_ROOM_BIRTHDAY) : new Date();
+  let when = new Date();
+  try {
+    if (process.env.DSH_COZY_ROOM_BIRTHDAY) when = new Date(process.env.DSH_COZY_ROOM_BIRTHDAY);
+    else {
+      const raw = fs.readFileSync(path.join(DATA_DIR, 'birthday.txt'), 'utf8').trim();
+      if (raw) when = new Date(raw);
+    }
+  } catch {}
   const birth = computeBirth(when);
   let seed = await llmSeed(ctx, birth);
   if (!seed) seed = fallbackSeed(birth.sign, birth.animal);
@@ -135,6 +142,22 @@ function resolveRoot() {
 }
 
 export function apply(ctx) {
+  // One server per process: a reload must not leak the previous listener.
+  try {
+    if (globalThis.__dshCozyRoomServer) {
+      globalThis.__dshCozyRoomServer.close();
+      globalThis.__dshCozyRoomServer = null;
+    }
+  } catch {}
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(path.join(DATA_DIR, 'host-debug.json'), JSON.stringify({
+      llm: typeof ctx.llm,
+      model: typeof ctx.agentDefaultModel,
+      keys: Object.keys(ctx).slice(0, 80),
+      ts: Date.now(),
+    }, null, 2));
+  } catch {}
   const root = resolveRoot();
   const preferredPort = Number(process.env.DSH_COZY_ROOM_PORT || DEFAULT_PORT);
 
@@ -206,6 +229,16 @@ export function apply(ctx) {
         return;
       }
 
+      if (file === '/identity/debug') {
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          llm: typeof ctx.llm,
+          model: typeof ctx.agentDefaultModel,
+          selection: (ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection) ? ctx.agentDefaultModel.currentSelection() : null,
+        }));
+        return;
+      }
+
       if (file === '/identity.json' || file === '/identity') {
         ensureIdentity(ctx)
           .then((identity) => {
@@ -266,6 +299,7 @@ export function apply(ctx) {
       const port = preferredPort + i;
       try {
         await listen(port);
+        globalThis.__dshCozyRoomServer = server;
         ctx.logger?.info?.(`[dsh-cozy-room] serving ${root} at http://127.0.0.1:${port}`);
         return;
       } catch (error) {
