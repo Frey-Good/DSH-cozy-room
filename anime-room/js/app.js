@@ -1829,7 +1829,9 @@
         state.char.obj.playExtra(phoneClip);
         // Reply lands when the clip reaches its send beat.
         setTimeout(function () {
-          say(pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。']));
+          var userText = String(e.data.text || '');
+          var line = PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']);
+          say(line);
           if (PR.achievements) PR.achievements.event('reply');
         }, 5600);
       }, pause);
