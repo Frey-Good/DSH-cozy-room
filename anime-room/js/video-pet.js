@@ -53,6 +53,10 @@
     var ambientClock = 0;
     var sleeping = false;
     var sleepClock = 0;
+    function isNightHour() {
+      var h = typeof window.__forceHour === 'number' ? window.__forceHour : new Date().getHours();
+      return h >= 23 || h < 8;
+    }
     var manualUntil = 0;
     var energy = 0.7;
     var paceScale = 1;
@@ -368,8 +372,18 @@
       },
       setWorkState: function (st) {
         if (Date.now() < manualUntil) return;
-        // Asleep: she stays in bed. Work can happen without her.
-        if (sleeping) return;
+        // Night window (23:00-08:00): asleep is sacred, work waits.
+        // Daytime: work wakes her up and she goes to the desk.
+        if (sleeping) {
+          var h = isNightHour();
+          if (h) return;
+          workState = st || 'idle';
+          working = workState !== 'idle';
+          sleeping = false;
+          sleepClock = 0;
+          goto('wake');
+          return;
+        }
         st = st || 'idle';
         if (st === workState) return;
         workState = st;
