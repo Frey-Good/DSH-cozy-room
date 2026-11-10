@@ -176,7 +176,8 @@ async function chatReply(ctx, body) {
     `你的名字是“${name}”。`,
     selfText || '我是一个刚住进这个房间的人，还在认识自己。',
     '',
-    '说话规则：用第一人称，像日常聊天，1–2 句，40 字以内；不写动作描写，不用括号，不提“人设/设定”；直接回应 ta 最后这句话，不要用“嗯嗯我在”这种套话，不知道就反问一句。',
+    '说话规则：用第一人称，像日常聊天，1–3 句，80 字以内；不写动作描写，不用括号，不提“人设/设定”；直接回应 ta 最后这句话，不要用“嗯嗯我在”这种套话；ta 问事情就正面答，不知道就说不知道，别编。',
+    ...(body.command && body.command.kind ? [`刚才 ta 让你做「${body.command.kind}」，你${body.command.refused ? '拒绝了' : '已经去做了'}；用一句自然的话回应，不要重复解释动作。`] : []),
     `现在：${timeLine()}${body.state ? '；' + body.state : ''}`,
     mem.length ? '我记得：\n- ' + mem.join('\n- ') : '',
     recent.length ? '最近聊过：\n' + recent.join('\n') : '',
@@ -208,7 +209,7 @@ async function chatReply(ctx, body) {
   }
   const text = out.join('').trim().replace(/^["“]|["”]$/g, '');
   if (!text) return { ok: false, reason: 'empty' };
-  return { ok: true, text: text.slice(0, 120) };
+  return { ok: true, text: text.slice(0, 200) };
 }
 
 async function reflectSelf(ctx, body) {

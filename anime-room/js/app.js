@@ -2032,7 +2032,7 @@
       }
       var userText = String(e.data.text || '');
       var cmd = PR.mind ? PR.mind.handle(userText) : null;
-      var pendingReply = cmd ? Promise.resolve(cmd.line) : ((PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText) : null);
+      var pendingReply = (PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText, cmd) : null;
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';

@@ -109,8 +109,9 @@
     return contextual();
   }
 
-  function replyAsync(text) {
+  function replyAsync(text, cmd) {
     var body = { text: String(text || '') };
+    if (cmd) body.command = { kind: cmd.kind, refused: !!cmd.refused };
     try {
       body.memories = (PR.memory ? PR.memory.search(text, 8) : []).map(function (m) { return m.text; });
       var recent = [];
