@@ -35,7 +35,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>她</h1>
+      <h1 id="herName">她</h1>
       <div class="sub">出生时是一粒种子，之后由经历改写</div>
     </div>
     <a href="/diary">← 她的日记</a>
@@ -144,6 +144,32 @@ function renderSelf(md) {
   });
   flush();
 }
+function renderUser(md) {
+  const box = document.getElementById('userText');
+  box.innerHTML = '';
+  if (!md) { box.innerHTML = '<p class="empty">她还没开始观察 ta。</p>'; return; }
+  const lines = md.split('\n');
+  let list = null;
+  function flush() { if (list) { box.appendChild(list); list = null; } }
+  lines.forEach(function (raw) {
+    const line = raw.trim();
+    if (!line || line.indexOf('# ') === 0) return;
+    if (line.indexOf('> ') === 0) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = line.slice(2); box.appendChild(p); return; }
+    const m = line.match(/^【(.+?)】(.*)$/);
+    if (m) {
+      flush();
+      const h = document.createElement('h3'); h.textContent = m[1]; box.appendChild(h);
+      const rest = m[2].trim();
+      if (rest) { const p = document.createElement('p'); p.textContent = rest; box.appendChild(p); }
+      return;
+    }
+    if (line.indexOf('- ') === 0) { if (!list) list = document.createElement('ul'); const li = document.createElement('li'); li.textContent = line.slice(2); list.appendChild(li); return; }
+    flush();
+    const p = document.createElement('p'); p.textContent = line; box.appendChild(p);
+  });
+  flush();
+}
+
 async function load() {
   try {
     const r = await fetch('/self.json', { cache: 'no-store' });
@@ -162,7 +188,9 @@ async function load() {
     chips(document.getElementById('likes'), likes);
     chips(document.getElementById('dislikes'), dislikes, 'dislike');
     chips(document.getElementById('wants'), wants.length ? wants : (id.wants || []), 'want');
+    if (id.name) document.getElementById('herName').textContent = id.name;
     renderSelf(j.self || '');
+    renderUser(j.user || '');
   } catch (err) {
     document.getElementById('selfText').innerHTML = '<p class="empty">读不到：' + err.message + '</p>';
   }

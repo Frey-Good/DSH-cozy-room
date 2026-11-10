@@ -40,6 +40,21 @@ PR.mind = (function () {
   }
 
   function handle(text) {
+    var raw = String(text || '');
+    // rename: “你以后叫大肥鱼吧” / “你就叫阿蓝”
+    var rn = /你(?:以后|就)?叫(?:做)?([\u4e00-\u9fa5A-Za-z0-9]{1,8})(?:吧|好不好|行吗)?$/.exec(raw.trim());
+    if (rn && !/什么|啥|谁/.test(raw)) {
+      try {
+        fetch('/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: rn[1] }),
+        }).catch(function () {});
+      } catch (e) {}
+      if (PR.memory) PR.memory.add('chat', 'ta 给我起名叫「' + rn[1] + '」，我答应了', 8, ['名字']);
+      closeness = clamp(closeness + 3, 0, 100);
+      return { kind: 'rename', refused: false, line: '好，以后我就叫' + rn[1] + '。' };
+    }
     var cmd = parse(text);
     if (!cmd) return null;
     var now = Date.now();

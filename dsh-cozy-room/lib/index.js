@@ -39,6 +39,7 @@ const DATA_DIR = process.env.DSH_COZY_ROOM_DATA || path.join(os.homedir(), '.dsh
 const IDENTITY_FILE = path.join(DATA_DIR, 'identity.json');
 const MEMORY_FILE = path.join(DATA_DIR, 'memory.jsonl');
 const SELF_FILE = path.join(DATA_DIR, 'self.md');
+const USER_FILE = path.join(DATA_DIR, 'user.md');
 
 function readMemories() {
   try {
@@ -148,6 +149,10 @@ function readSelfText() {
   try { return fs.readFileSync(SELF_FILE, 'utf8'); } catch { return ''; }
 }
 
+function readUserText() {
+  try { return fs.readFileSync(USER_FILE, 'utf8'); } catch { return ''; }
+}
+
 function timeLine() {
   const now = new Date();
   const h = now.getHours();
@@ -164,13 +169,18 @@ async function chatReply(ctx, body) {
   const selfText = readSelfText();
   const mem = Array.isArray(body.memories) ? body.memories.slice(0, 10).map((x) => String(x).slice(0, 80)) : [];
   const recent = Array.isArray(body.recent) ? body.recent.slice(-6).map((x) => String(x).slice(0, 60)) : [];
+  const id = readIdentity() || {};
+  const name = id.name || '小蓝';
+  const userText = readUserText();
   const system = [
+    `你的名字是“${name}”。`,
     selfText || '我是一个刚住进这个房间的人，还在认识自己。',
     '',
     '说话规则：用第一人称，像日常聊天，1–2 句，40 字以内；不写动作描写，不用括号，不提“人设/设定”。',
     `现在：${timeLine()}${body.state ? '；' + body.state : ''}`,
     mem.length ? '我记得：\n- ' + mem.join('\n- ') : '',
     recent.length ? '最近聊过：\n' + recent.join('\n') : '',
+    userText ? '你认识的 ta：\n' + userText.slice(0, 1200) : '',
   ].filter(Boolean).join('\n');
 
   const ac = new AbortController();
@@ -218,6 +228,10 @@ async function reflectSelf(ctx, body) {
     '【最讨厌】只写 1 条，最讨厌的。',
     '【讨厌】1–3 条，其他讨厌的。',
     '【喜欢】2–4 条，具体到东西或时刻。',
+    '然后单独一行写：===TA===',
+    '【ta 是谁】2–4 条，ta 是个什么样的人、做什么事。',
+    '【ta 的习惯】2–4 条，作息、说话方式、在意的东西。',
+    '【我对 ta 的判断】2–4 条，可以带一点你自己的看法（觉得他嘴硬、有点担心他熬夜），但不要评价人品、不要下结论。',
     '能从经历里推出来的才写；推不出来的宁可不写；已经得到的，不要继续写在想要里。',
   ].join('\n');
   const user = [
@@ -248,7 +262,10 @@ async function reflectSelf(ctx, body) {
   }
   let text = out.join('').trim();
   if (!text) return { ok: false, reason: 'empty' };
-  text = text
+  const parts = text.split(/={3,}\s*TA\s*={3,}/i);
+  const minePart = (parts[0] || '').trim();
+  const taPart = (parts[1] || '').trim();
+  let selfTextClean = minePart
     .replace(/^#\s*我是谁\s*/i, '')
     .replace(/^出生：.*$/m, '')
     .replace(/^八字：.*$/m, '')
@@ -259,7 +276,7 @@ async function reflectSelf(ctx, body) {
     '',
     identity.birthday ? `出生：${identity.birthday}（${identity.sign}，${identity.animal}年）` : '',
     '',
-    text,
+    selfTextClean,
     '',
     `> 更新于 ${new Date().toLocaleString('zh-CN')}`,
   ].filter((x) => x !== null).join('\n');
@@ -412,9 +429,29 @@ export function apply(ctx) {
         return;
       }
 
+      if (file === '/rename' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 20000) req.destroy(); });
+        req.on('end', () => {
+          let name = '';
+          try { name = String(JSON.parse(raw || '{}').name || '').trim(); } catch (e) {}
+          if (!/^[\u4e00-\u9fa5A-Za-z0-9]{1,12}$/.test(name)) {
+            res.writeHead(400, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, reason: 'bad-name' }));
+            return;
+          }
+          const identity = readIdentity() || {};
+          identity.name = name;
+          writeIdentity(identity);
+          res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: true, name }));
+        });
+        return;
+      }
+
       if (file === '/self.json') {
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ identity: readIdentity() || null, self: readSelfText() || '' }));
+        res.end(JSON.stringify({ identity: readIdentity() || null, self: readSelfText() || '', user: readUserText() || '' }));
         return;
       }
 
