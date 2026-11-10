@@ -66,14 +66,31 @@
     if (PR.store && PR.store.message) {
       PR.store.message(text, { from: 'her' });
     }
-    if (PR.say) PR.say(text, 3200);
+    if (!PR.say) return;
+    if (PR.quip) {
+      var h = new Date().getHours();
+      PR.quip.get(key + '（现在是' + h + '点，' + (isNight() ? '夜里' : '白天') + '）', text)
+        .then(function (t) { PR.say(t, 3200); });
+      return;
+    }
+    PR.say(text, 3200);
+  }
+
+  function isNight() {
+    var h = new Date().getHours();
+    return h >= 19 || h < 6;
   }
 
   function fire(key) {
     var cfg = LINES[key];
     if (!cfg) return false;
     if (!canFire(key, cfg.cool)) return false;
-    speak(key, pick(cfg.lines));
+    var text = pick(cfg.lines);
+    // clear weather at night must not talk about the sun
+    if (key === 'weather:clear' && isNight()) {
+      text = pick(['今晚星星很亮。', '云散了，能看到月亮。', '夜里天晴，风有点凉。']);
+    }
+    speak(key, text);
     return true;
   }
 
