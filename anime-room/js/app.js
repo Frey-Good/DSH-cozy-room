@@ -55,7 +55,6 @@
     selname: document.getElementById('sel-name'),
     btnNight: document.getElementById('btn-night'),
     btnReset: document.getElementById('btn-reset'),
-    btnArrange: document.getElementById('btn-arrange'),
     btnRotate: document.getElementById('btn-rotate'),
     btnRemove: document.getElementById('btn-remove'),
     toast: document.getElementById('toast'),
@@ -1863,7 +1862,6 @@
       toast('已切换为手动昼夜（时间同步已关闭，可在设置里重新开启）');
     });
     ui.btnReset.addEventListener('click', resetLayout);
-    if (ui.btnArrange) ui.btnArrange.addEventListener('click', function () { toast('她开始重新布置…'); autoArrange(); });
     ui.btnRotate.addEventListener('click', function () {
       if (state.selected) rotateSelected();
     });
@@ -2115,94 +2113,6 @@
     document.body.classList.toggle('embed', !e.data.interactive);
     applyClockAnchor();
   });
-  // ------------------------------------------------------------ 让她布置
-  var ARRANGE_ZONES = {
-    rug: [{ x: 3.9, z: 4.2, rot: 0 }],
-    roundRug: [{ x: 5.7, z: 4.9, rot: 0 }],
-    bed: [{ x: 1.85, z: 1.15, rot: 0 }],
-    wardrobe: [{ x: 0.85, z: 3.4, rot: 0 }],
-    shelf: [{ x: 1.1, z: 5.6, rot: 0 }, { x: 2.6, z: 7.6, rot: 0 }],
-    desk: [{ x: 6.2, z: 1.2, rot: 0 }],
-    computer: [{ x: 6.3, z: 1.0, rot: 0 }],
-    chair: [{ x: 5.4, z: 1.7, rot: 0 }],
-    sofa: [{ x: 3.8, z: 5.1, rot: 0 }],
-    tv: [{ x: 3.8, z: 7.35, rot: 0 }],
-    table: [{ x: 3.8, z: 6.25, rot: 0 }],
-    lamp: [{ x: 2.5, z: 5.3, rot: 0 }],
-    plant: [{ x: 5.9, z: 2.3, rot: 0 }, { x: 4.8, z: 0.9, rot: 0 }],
-    palm: [{ x: 6.9, z: 3.5, rot: 0 }],
-    catbed: [{ x: 2.2, z: 6.7, rot: 0 }],
-    record: [{ x: 0.9, z: 5.2, rot: 0 }],
-    side: [{ x: 2.4, z: 4.5, rot: 0 }],
-    robot: [{ x: 6.6, z: 6.5, rot: 0 }],
-  };
-
-  function autoArrange() {
-    var movable = state.items.filter(function (it) { return !it.wall; });
-    if (!movable.length) return false;
-    var placed = [];
-    var order = movable.slice().sort(function (a, b) {
-      var fa = a.def.flat ? 1 : 0, fb = b.def.flat ? 1 : 0;
-      if (fa !== fb) return fb - fa;
-      return (b.def.w * b.def.d) - (a.def.w * a.def.d);
-    });
-    function collides(it, x, z, rot) {
-      if (it.def.flat) return false;
-      var f = footprint(it.def, rot);
-      if (x - f.w / 2 < 0.22 || z - f.d / 2 < 0.22 || x + f.w / 2 > R.w - 0.22 || z + f.d / 2 > R.d - 0.22) return true;
-      for (var i = 0; i < placed.length; i++) {
-        var p = placed[i];
-        if (Math.abs(p.x - x) < (p.w + f.w) / 2 + 0.22 && Math.abs(p.z - z) < (p.d + f.d) / 2 + 0.22) return true;
-      }
-      return false;
-    }
-    var moves = [];
-    order.forEach(function (it) {
-      var zones = ARRANGE_ZONES[it.def.id] || [];
-      var target = null;
-      for (var i = 0; i < zones.length && !target; i++) {
-        if (!collides(it, zones[i].x, zones[i].z, zones[i].rot)) target = zones[i];
-      }
-      if (!target) {
-        for (var gz = 0.8; gz < R.d - 0.4 && !target; gz += 0.4) {
-          for (var gx = 0.8; gx < R.w - 0.4 && !target; gx += 0.4) {
-            if (!collides(it, gx, gz, 0)) target = { x: gx, z: gz, rot: 0 };
-          }
-        }
-      }
-      if (!target) target = { x: it.x, z: it.z, rot: it.rot };
-      var f = footprint(it.def, target.rot);
-      if (!it.def.flat) placed.push({ x: target.x, z: target.z, w: f.w, d: f.d });
-      moves.push({ it: it, x: target.x, z: target.z, rot: target.rot, fx: it.x, fz: it.z });
-    });
-    var t0 = performance.now();
-    (function step() {
-      var k = Math.min(1, (performance.now() - t0) / 700);
-      var e = k * k * (3 - 2 * k);
-      for (var i = 0; i < moves.length; i++) {
-        var m = moves[i];
-        m.it.x = m.fx + (m.x - m.fx) * e;
-        m.it.z = m.fz + (m.z - m.fz) * e;
-        m.it.group.position.set(m.it.x, 0, m.it.z);
-      }
-      if (k < 1) {
-        requestAnimationFrame(step);
-        return;
-      }
-      for (var j = 0; j < moves.length; j++) {
-        var mm = moves[j];
-        mm.it.x = mm.x;
-        mm.it.z = mm.z;
-        mm.it.rot = mm.rot;
-        mm.it.group.rotation.y = mm.rot;
-      }
-      rebuildNav();
-      save();
-      say(pickLine(['这样是不是好一点？', '我觉得这样顺眼。', '窗边留给光了。', '嗯，就这样。']), 2600);
-    })();
-    return true;
-  }
-
   window.__purpleRoom = {
     get items() { return state.items.length; },
     get char() { return { x: state.char.x, z: state.char.z }; },
@@ -2227,7 +2137,6 @@
     debugSetNight: function (v) { state.night = !!v; world.setNight(!!v); updateNightButton(); },
     debugPet: function () { petCharacter(); },
     debugPlayExtra: function (id) { return state.char && state.char.obj.playExtra ? state.char.obj.playExtra(id) : false; },
-    debugArrange: function () { return autoArrange(); },
     debugChore: function (kind) {
       if (!PR.roomlife) return null;
       var r = PR.roomlife.load() || PR.store.state.room;
