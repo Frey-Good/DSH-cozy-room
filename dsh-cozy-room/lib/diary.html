@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的日记 · 小蓝的记忆</title>
+<style>
+  :root { --paper:#fbf7ef; --ink:#3b342c; --muted:#8a7f70; --line:#e6dccb; --accent:#7a9e7e; --warm:#c98b5e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#efe7d8; color:var(--ink); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; line-height:1.7; }
+  .wrap { max-width:820px; margin:0 auto; padding:36px 20px 80px; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; }
+  h1 { margin:0; font-size:26px; letter-spacing:2px; }
+  .sub { color:var(--muted); font-size:13px; }
+  .toolbar { display:flex; gap:8px; }
+  button { border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  input { border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:7px 12px; font-size:13px; width:200px; }
+  .day { margin:26px 0 10px; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:10px; }
+  .day::after { content:''; flex:1; height:1px; background:var(--line); }
+  .entry { background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:8px 0; box-shadow:0 1px 0 rgba(0,0,0,.02); }
+  .entry .top { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+  .entry .text { margin-top:6px; font-size:15px; }
+  .imp { display:inline-flex; gap:2px; }
+  .imp i { width:5px; height:5px; border-radius:50%; background:var(--line); }
+  .imp i.on { background:var(--warm); }
+  .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:1px 8px; }
+  .empty { color:var(--muted); text-align:center; padding:60px 0; }
+  .note { margin-top:26px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>我的日记</h1>
+      <div class="sub">小蓝的记忆流 · 只读 · <span id="count">0</span> 条</div>
+    </div>
+    <div class="toolbar">
+      <input id="q" placeholder="搜一件事…">
+      <button id="export">导出 JSON</button>
+      <button id="refresh">刷新</button>
+    </div>
+  </header>
+  <div id="list"></div>
+  <div class="note">这是她记得的事。房间界面里看不到，这里可以。</div>
+</div>
+<script>
+let entries = [];
+function fmt(ts) {
+  const d = new Date(ts);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function dayLabel(ts) {
+  const d = new Date(ts); const n = new Date();
+  const same = d.toDateString() === n.toDateString();
+  const y = new Date(n.getTime() - 86400000);
+  if (same) return '今天';
+  if (d.toDateString() === y.toDateString()) return '昨天';
+  return (d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+function render() {
+  const q = document.getElementById('q').value.trim();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  const rows = entries.filter(e => !q || (e.text||'').includes(q) || (e.tags||[]).join(',').includes(q));
+  document.getElementById('count').textContent = rows.length;
+  if (!rows.length) { list.innerHTML = '<div class="empty">还没有记忆</div>'; return; }
+  let lastDay = '';
+  rows.forEach(e => {
+    const day = dayLabel(e.ts);
+    if (day !== lastDay) {
+      lastDay = day;
+      const h = document.createElement('div');
+      h.className = 'day'; h.textContent = day;
+      list.appendChild(h);
+    }
+    const row = document.createElement('div'); row.className = 'entry';
+    const top = document.createElement('div'); top.className = 'top';
+    const time = document.createElement('span'); time.textContent = fmt(e.ts);
+    const imp = document.createElement('span'); imp.className = 'imp';
+    const lv = Math.max(0, Math.min(10, e.importance || 0));
+    for (let i = 1; i <= 10; i++) { const b = document.createElement('i'); if (i <= lv) b.className = 'on'; imp.appendChild(b); }
+    top.appendChild(time); top.appendChild(imp);
+    (e.tags||[]).slice(0,3).forEach(t => { const s = document.createElement('span'); s.className='tag'; s.textContent=t; top.appendChild(s); });
+    const text = document.createElement('div'); text.className='text'; text.textContent = e.text || '';
+    row.appendChild(top); row.appendChild(text);
+    list.appendChild(row);
+  });
+}
+async function load() {
+  try {
+    const r = await fetch('/diary.json', { cache:'no-store' });
+    const j = await r.json();
+    entries = (j.entries||[]).slice().sort((a,b)=>b.ts-a.ts);
+    render();
+  } catch (err) { document.getElementById('list').innerHTML = '<div class="empty">读不到日记：' + err.message + '</div>'; }
+}
+document.getElementById('refresh').addEventListener('click', load);
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ entries }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'xiaolan-memory.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

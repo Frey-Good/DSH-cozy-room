@@ -6,6 +6,7 @@ PR.memory = (function () {
   'use strict';
   var CAP = 5000;
   var KEY = 'cozy-room-memories';
+  var syncTimer = 0;
   var DAY = 86400000;
 
   function state() { return PR.store && PR.store.state ? PR.store.state : null; }
@@ -13,11 +14,30 @@ PR.memory = (function () {
     var s = state();
     if (!s) return [];
     if (!Array.isArray(s.memories)) s.memories = [];
+    scheduleSync();
     return s.memories;
   }
+  function sync() {
+    try {
+      var list = all().slice(-800);
+      if (!list.length) return;
+      fetch('/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: list }),
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function scheduleSync() {
+    if (syncTimer) return;
+    syncTimer = setTimeout(function () { syncTimer = 0; sync(); }, 2000);
+  }
+
   function persist() {
     try { localStorage.setItem(KEY, JSON.stringify(all().slice(-CAP))); } catch (e) {}
     if (PR.store && PR.store.save) PR.store.save();
+    scheduleSync();
   }
   function load() {
     var s = state();

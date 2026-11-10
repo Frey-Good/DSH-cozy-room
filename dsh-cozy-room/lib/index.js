@@ -37,7 +37,32 @@ const BUILD_ID = 'dsh-cozy-room:1.1.0';
 const PORT_SCAN = 12;
 const DATA_DIR = process.env.DSH_COZY_ROOM_DATA || path.join(os.homedir(), '.dsh', 'cozy-room');
 const IDENTITY_FILE = path.join(DATA_DIR, 'identity.json');
+const MEMORY_FILE = path.join(DATA_DIR, 'memory.jsonl');
 const SELF_FILE = path.join(DATA_DIR, 'self.md');
+
+function readMemories() {
+  try {
+    return fs.readFileSync(MEMORY_FILE, 'utf8')
+      .split('\n').filter(Boolean)
+      .map((line) => { try { return JSON.parse(line); } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+
+function appendMemories(entries) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const seen = new Set(readMemories().map((m) => m.id));
+  let added = 0;
+  const lines = [];
+  for (const e of entries) {
+    if (!e || !e.id || seen.has(e.id)) continue;
+    seen.add(e.id);
+    lines.push(JSON.stringify(e));
+    added += 1;
+  }
+  if (lines.length) fs.appendFileSync(MEMORY_FILE, lines.join('\n') + '\n', 'utf8');
+  return added;
+}
 
 function readIdentity() {
   try { return JSON.parse(fs.readFileSync(IDENTITY_FILE, 'utf8')); } catch { return null; }
@@ -209,8 +234,13 @@ async function reflectSelf(ctx, body) {
   } finally {
     clearTimeout(timer);
   }
-  const text = out.join('').trim();
+  let text = out.join('').trim();
   if (!text) return { ok: false, reason: 'empty' };
+  text = text
+    .replace(/^#\s*我是谁\s*/i, '')
+    .replace(/^出生：.*$/m, '')
+    .replace(/^八字：.*$/m, '')
+    .trim();
   const identity = readIdentity() || {};
   const head = [
     '# 我是谁',
@@ -355,6 +385,41 @@ export function apply(ctx) {
         }
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(info));
+        return;
+      }
+
+      if (file === '/diary' || file === '/diary.html') {
+        try {
+          const html = fs.readFileSync(path.join(__dirname, 'diary.html'), 'utf8');
+          res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(html);
+        } catch (error) {
+          if (!res.headersSent) res.writeHead(500);
+          res.end('diary not found');
+        }
+        return;
+      }
+
+      if (file === '/diary.json') {
+        const entries = readMemories();
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ entries }));
+        return;
+      }
+
+      if (file === '/memory' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 2000000) req.destroy(); });
+        req.on('end', () => {
+          let added = 0;
+          try {
+            const body = JSON.parse(raw || '{}');
+            added = appendMemories(Array.isArray(body.entries) ? body.entries : []);
+          } catch (error) { /* ignore bad payload */ }
+          if (res.writableEnded || res.headersSent) return;
+          res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: true, added, total: readMemories().length }));
+        });
         return;
       }
 
