@@ -440,6 +440,7 @@
   }
 
   var OUR_CLIPS = [
+    { id: '自制:扫地-A', name: '扫地-A', file: '自制-扫地-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:看手机-A', name: '看手机-A', file: '自制-看手机-A.webm', cat: '手机', source: 'ours' },
     { id: '自制:看手机-B', name: '看手机-B', file: '自制-看手机-B.webm', cat: '手机', source: 'ours' },
     { id: '自制:看手机-C', name: '看手机-C', file: '自制-看手机-C.webm', cat: '手机', source: 'ours' },
@@ -695,7 +696,7 @@
   // save() runs after every layout change (place / drag / remove / rotate /
   // reset), so hooking refreshAnchors() there covers all of them.
   var CHORE_CLIP = {
-    clean: '碎碎念-擦桌碎碎念',
+    clean: '自制:扫地-A',
     water: '原地蹲下玩玩具汽车',
     tidy: '工作状态-清点归档',
     feed: '原地蹲下玩玩具汽车',
@@ -1724,7 +1725,7 @@
       clean: function () {
         var list = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList().filter(function (x) { return x.kind === 'floor'; }) : [];
         if (list.length && PR.roomlife) PR.roomlife.clean('floor', list[0]);
-        if (state.char) state.char.obj.playExtra('碎碎念-擦桌碎碎念');
+        if (state.char) state.char.obj.playExtra('自制:扫地-A');
       },
       water: function () {
         var room = PR.store && PR.store.state && PR.store.state.room;
