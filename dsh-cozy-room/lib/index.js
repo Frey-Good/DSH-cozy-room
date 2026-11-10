@@ -445,7 +445,9 @@ export function apply(ctx) {
           }
           const identity = readIdentity() || {};
           identity.name = name;
-          writeIdentity(identity);
+          // only touch identity.json: never overwrite the evolved self.md
+          fs.mkdirSync(DATA_DIR, { recursive: true });
+          fs.writeFileSync(IDENTITY_FILE, JSON.stringify(identity, null, 2), 'utf8');
           res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ ok: true, name }));
         });
