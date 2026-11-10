@@ -421,6 +421,53 @@ export function apply(ctx) {
         return;
       }
 
+      if (file === '/data' || file === '/data.html') {
+        try {
+          const html = fs.readFileSync(path.join(__dirname, 'data.html'), 'utf8');
+          res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(html);
+        } catch (error) {
+          if (!res.headersSent) res.writeHead(500);
+          res.end('data page not found');
+        }
+        return;
+      }
+
+      if (file === '/backup.json') {
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          identity: readIdentity() || null,
+          self: readSelfText() || '',
+          user: readUserText() || '',
+          memories: readMemories(),
+        }));
+        return;
+      }
+
+      if (file === '/reset' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 20000) req.destroy(); });
+        req.on('end', () => {
+          let scope = 'memory';
+          try { scope = String(JSON.parse(raw || '{}').scope || 'memory'); } catch (e) {}
+          try {
+            if (scope === 'memory') {
+              fs.writeFileSync(MEMORY_FILE, '', 'utf8');
+            } else if (scope === 'all') {
+              for (const f of [MEMORY_FILE, IDENTITY_FILE, SELF_FILE, USER_FILE]) {
+                try { fs.rmSync(f, { force: true }); } catch (e) {}
+              }
+            }
+            res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: true, scope }));
+          } catch (error) {
+            res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, reason: String(error && error.message) }));
+          }
+        });
+        return;
+      }
+
       if (file === '/self' || file === '/self.html') {
         try {
           const html = fs.readFileSync(path.join(__dirname, 'self.html'), 'utf8');

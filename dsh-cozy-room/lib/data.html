@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据 · 备份与重置</title>
+<style>
+  :root { --paper:#fbf7ef; --ink:#3b342c; --muted:#8a7f70; --line:#e6dccb; --accent:#7a9e7e; --danger:#b3564a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#efe7d8; color:var(--ink); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; line-height:1.7; }
+  .wrap { max-width:760px; margin:0 auto; padding:36px 20px 80px; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; }
+  h1 { margin:0; font-size:26px; letter-spacing:2px; }
+  .sub { color:var(--muted); font-size:13px; }
+  a { color:var(--accent); text-decoration:none; font-size:13px; }
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  .card h2 { margin:0 0 10px; font-size:15px; letter-spacing:1px; color:var(--muted); font-weight:600; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  button { border:1px solid var(--line); background:#fffdf8; color:var(--ink); border-radius:8px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.danger { color:var(--danger); border-color:#e3c4be; }
+  button.danger:hover { background:#fbeeeb; }
+  .hint { color:var(--muted); font-size:12.5px; margin-top:6px; }
+  .count { font-size:13px; color:var(--muted); }
+  .note { margin-top:24px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>数据</h1>
+      <div class="sub">备份她，或者从头再来</div>
+    </div>
+    <div>
+      <a href="/self">她的自我</a> · <a href="/diary">她的日记</a>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>备份</h2>
+    <div class="row">
+      <div>
+        <div>导出全部数据为一个 JSON 文件</div>
+        <div class="hint" id="counts">读取中…</div>
+      </div>
+      <button id="export">导出备份</button>
+    </div>
+    <div class="hint">包含：房间布局、设置、房间状态、记忆流、她的出生信息、自我、对 ta 的了解。手机聊天记录不在其中。</div>
+  </div>
+
+  <div class="card">
+    <h2>重置房间</h2>
+    <div class="row">
+      <div>
+        <div>家具回到初始布置</div>
+        <div class="hint">记忆、自我、手机都保留</div>
+      </div>
+      <button class="danger" data-scope="room">重置房间</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>清空记忆</h2>
+    <div class="row">
+      <div>
+        <div>她会忘记所有记得的事</div>
+        <div class="hint">房间、性格、出生信息保留</div>
+      </div>
+      <button class="danger" data-scope="memory">清空记忆</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>完全重来</h2>
+    <div class="row">
+      <div>
+        <div>清掉现在的她，重新出生</div>
+        <div class="hint">房间、记忆、自我、出生信息全部清除，不可撤销</div>
+      </div>
+      <button class="danger" data-scope="all">完全重来</button>
+    </div>
+  </div>
+
+  <div class="note">重置前建议先导出一份备份。</div>
+</div>
+<script>
+const KEYS = ['cozy-room-game', 'cozy-room-settings', 'cozy-room-memories', 'cozy-room-roomlife'];
+function readJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+}
+async function fetchBackup() {
+  try {
+    const r = await fetch('/backup.json', { cache: 'no-store' });
+    return await r.json();
+  } catch (e) { return {}; }
+}
+async function build() {
+  const host = await fetchBackup();
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    room: readJSON('cozy-room-game', null),
+    settings: readJSON('cozy-room-settings', null),
+    memories: readJSON('cozy-room-memories', []),
+    roomlife: readJSON('cozy-room-roomlife', null),
+    identity: host.identity || null,
+    self: host.self || '',
+    user: host.user || '',
+  };
+}
+async function refreshCounts() {
+  const b = await build();
+  const items = b.room ? ((b.room.floor || []).length + (b.room.wall || []).length) : 0;
+  const mem = Array.isArray(b.memories) ? b.memories.length : 0;
+  document.getElementById('counts').textContent =
+    '家具 ' + items + ' 件 · 记忆 ' + mem + ' 条' + (b.identity && b.identity.name ? ' · 她叫 ' + b.identity.name : '');
+}
+document.getElementById('export').addEventListener('click', async () => {
+  const data = await build();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'xiaolan-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+async function reset(scope) {
+  if (scope === 'all') {
+    if (!confirm('这会把现在的她清掉，重新出生。真的吗？')) return;
+    if (!confirm('最后确认一次：房间、记忆、自我、出生信息都会删除。')) return;
+  } else if (scope === 'memory') {
+    if (!confirm('清空所有记忆？她会忘记你们之间发生过的事。')) return;
+  } else {
+    if (!confirm('把家具恢复成初始布置？')) return;
+  }
+  try {
+    if (scope === 'room') {
+      localStorage.removeItem('cozy-room-game');
+    } else if (scope === 'memory') {
+      localStorage.removeItem('cozy-room-memories');
+      localStorage.removeItem('cozy-room-roomlife');
+    } else if (scope === 'all') {
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      localStorage.removeItem('cozy-room-layout-restored-v1');
+    }
+    await fetch('/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope }),
+    });
+    location.reload();
+  } catch (e) {
+    alert('重置失败：' + e.message);
+  }
+}
+document.querySelectorAll('button[data-scope]').forEach((btn) => {
+  btn.addEventListener('click', () => reset(btn.getAttribute('data-scope')));
+});
+refreshCounts();
+</script>
+</body>
+</html>
