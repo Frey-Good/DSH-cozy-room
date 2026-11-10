@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>她 · 小蓝的自我</title>
+<style>
+  :root { --paper:#fbf7ef; --ink:#3b342c; --muted:#8a7f70; --line:#e6dccb; --accent:#7a9e7e; --warm:#c98b5e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#efe7d8; color:var(--ink); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; line-height:1.75; }
+  .wrap { max-width:860px; margin:0 auto; padding:36px 20px 80px; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; }
+  h1 { margin:0; font-size:26px; letter-spacing:2px; }
+  .sub { color:var(--muted); font-size:13px; }
+  a { color:var(--accent); text-decoration:none; font-size:13px; }
+  a:hover { text-decoration:underline; }
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  .card h2 { margin:0 0 10px; font-size:15px; letter-spacing:1px; color:var(--muted); font-weight:600; }
+  .facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .fact b { display:block; font-size:12px; color:var(--muted); font-weight:400; }
+  .fact span { font-size:16px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line); border-radius:20px; padding:3px 12px; font-size:14px; background:#fffdf8; }
+  .chip.want { border-color:#e3c9a8; }
+  .chip.dislike { border-color:#e0c4c4; }
+  .self p { margin:0 0 12px; font-size:15px; }
+  .self h3 { margin:16px 0 6px; font-size:14px; color:var(--warm); }
+  .self ul { margin:0 0 10px; padding-left:20px; }
+  .self li { margin:3px 0; }
+  .empty { color:var(--muted); font-size:14px; }
+  .note { margin-top:24px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>她</h1>
+      <div class="sub">出生时是一粒种子，之后由经历改写</div>
+    </div>
+    <a href="/diary">← 她的日记</a>
+  </header>
+
+  <div class="card">
+    <h2>出生</h2>
+    <div class="facts">
+      <div class="fact"><b>生日</b><span id="birthday">—</span></div>
+      <div class="fact"><b>星座</b><span id="sign">—</span></div>
+      <div class="fact"><b>生肖</b><span id="animal">—</span></div>
+      <div class="fact"><b>八字</b><span id="bazi">—</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>出生时的样子</h2>
+    <div id="seed" class="chips"></div>
+    <p id="seedLine" class="empty" style="margin-top:10px"></p>
+  </div>
+
+  <div class="card">
+    <h2>喜欢</h2>
+    <div id="likes" class="chips"></div>
+  </div>
+
+  <div class="card">
+    <h2>讨厌</h2>
+    <div id="dislikes" class="chips"></div>
+  </div>
+
+  <div class="card">
+    <h2>想要</h2>
+    <div id="wants" class="chips"></div>
+  </div>
+
+  <div class="card self">
+    <h2>现在的她</h2>
+    <div id="selfText"></div>
+  </div>
+
+  <div class="note">这是她的自我描述，会随着经历和反思慢慢变化。</div>
+</div>
+<script>
+function chips(el, list, cls) {
+  el.innerHTML = '';
+  if (!list || !list.length) { el.innerHTML = '<span class="empty">还没有</span>'; return; }
+  list.forEach(function (t) {
+    const s = document.createElement('span');
+    s.className = 'chip' + (cls ? ' ' + cls : '');
+    s.textContent = t;
+    el.appendChild(s);
+  });
+}
+function renderSelf(md) {
+  const box = document.getElementById('selfText');
+  box.innerHTML = '';
+  if (!md) { box.innerHTML = '<p class="empty">还没有反思过。</p>'; return; }
+  const lines = md.split('\n');
+  let list = null, section = null;
+  function flush() { if (list) { box.appendChild(list); list = null; } }
+  lines.forEach(function (raw) {
+    const line = raw.trim();
+    if (!line) return;
+    if (line.indexOf('# ') === 0) return;
+    if (line.indexOf('出生：') === 0 || line.indexOf('八字：') === 0) return;
+    if (line.indexOf('> ') === 0) {
+      const p = document.createElement('p'); p.className = 'empty'; p.textContent = line.slice(2); box.appendChild(p); return;
+    }
+    const m = line.match(/^【(.+?)】(.*)$/);
+    if (m) {
+      flush();
+      const h = document.createElement('h3'); h.textContent = m[1]; box.appendChild(h);
+      section = m[1];
+      const rest = m[2].trim();
+      if (rest) { const p = document.createElement('p'); p.textContent = rest; box.appendChild(p); }
+      return;
+    }
+    if (line.indexOf('- ') === 0) {
+      if (!list) { list = document.createElement('ul'); }
+      const li = document.createElement('li'); li.textContent = line.slice(2); list.appendChild(li);
+      return;
+    }
+    flush();
+    const p = document.createElement('p'); p.textContent = line; box.appendChild(p);
+  });
+  flush();
+}
+async function load() {
+  try {
+    const r = await fetch('/self.json', { cache: 'no-store' });
+    const j = await r.json();
+    const id = j.identity || {};
+    document.getElementById('birthday').textContent = id.birthday || '—';
+    document.getElementById('sign').textContent = id.sign || '—';
+    document.getElementById('animal').textContent = id.animal || '—';
+    document.getElementById('bazi').textContent = (id.bazi && id.bazi.text) || '—';
+    chips(document.getElementById('seed'), id.traits || []);
+    document.getElementById('seedLine').textContent = id.line || '';
+    chips(document.getElementById('likes'), id.likes || []);
+    chips(document.getElementById('dislikes'), id.dislikes || [], 'dislike');
+    chips(document.getElementById('wants'), id.wants || [], 'want');
+    renderSelf(j.self || '');
+  } catch (err) {
+    document.getElementById('selfText').innerHTML = '<p class="empty">读不到：' + err.message + '</p>';
+  }
+}
+load();
+</script>
+</body>
+</html>

@@ -400,6 +400,24 @@ export function apply(ctx) {
         return;
       }
 
+      if (file === '/self' || file === '/self.html') {
+        try {
+          const html = fs.readFileSync(path.join(__dirname, 'self.html'), 'utf8');
+          res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(html);
+        } catch (error) {
+          if (!res.headersSent) res.writeHead(500);
+          res.end('self not found');
+        }
+        return;
+      }
+
+      if (file === '/self.json') {
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ identity: readIdentity() || null, self: readSelfText() || '' }));
+        return;
+      }
+
       if (file === '/diary' || file === '/diary.html') {
         try {
           const html = fs.readFileSync(path.join(__dirname, 'diary.html'), 'utf8');
