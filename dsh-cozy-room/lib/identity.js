@@ -111,6 +111,9 @@ export function fallbackSeed(sign, animal) {
   const f = FALLBACK[sign] || { traits: ['安静', '慢热'], line: '刚刚来到这里。' };
   return {
     traits: f.traits.slice(),
+    likes: ['窗边的光', '安静'],
+    dislikes: ['太吵'],
+    wants: ['把房间收拾好'],
     line: f.line,
     source: 'fallback',
   };
@@ -133,10 +136,11 @@ export function seedPrompt(birth) {
     `出生时间：${birth.birthday}`,
     `星座：${birth.sign}；生肖：${birth.animal}；八字：${birth.bazi.text}`,
     '只输出 JSON，不要解释：',
-    '{"traits":["3到5条初始倾向，每条不超过12字"],"line":"一句自我描述，不超过30字"}',
+    '{"traits":["3到5条初始倾向，每条不超过12字"],"likes":["2到3个喜欢的东西"],"dislikes":["1到2个讨厌的东西"],"wants":["1到2个想要的东西"],"line":"一句自我描述，不超过30字"}',
     '要求：',
     '- 像“出生那天的天气”，是起点不是命运；',
     '- 可以有矛盾（比如安静但坐不住），不要完美人设；',
+    '- 喜欢/讨厌/想要要具体一点（具体的东西或时刻，不要抽象词）；',
     '- 不要写身份、职业、外貌。',
   ].join('\n');
 }

@@ -82,6 +82,9 @@ function writeIdentity(identity) {
     '',
     identity.line,
     '',
+    ...(Array.isArray(identity.likes) && identity.likes.length ? ['喜欢：', ...identity.likes.map((t) => `- ${t}`), ''] : []),
+    ...(Array.isArray(identity.dislikes) && identity.dislikes.length ? ['讨厌：', ...identity.dislikes.map((t) => `- ${t}`), ''] : []),
+    ...(Array.isArray(identity.wants) && identity.wants.length ? ['想要：', ...identity.wants.map((t) => `- ${t}`), ''] : []),
     '> 这只是开始，会被之后经历的事改写。',
   ];
   fs.writeFileSync(SELF_FILE, lines.join('\n'), 'utf8');
@@ -129,6 +132,9 @@ async function llmSeed(ctx, birth) {
     if (!Array.isArray(parsed.traits) || parsed.traits.length === 0) return null;
     return {
       traits: parsed.traits.map((t) => String(t).slice(0, 24)).slice(0, 6),
+      likes: Array.isArray(parsed.likes) ? parsed.likes.map((t) => String(t).slice(0, 24)).slice(0, 4) : [],
+      dislikes: Array.isArray(parsed.dislikes) ? parsed.dislikes.map((t) => String(t).slice(0, 24)).slice(0, 3) : [],
+      wants: Array.isArray(parsed.wants) ? parsed.wants.map((t) => String(t).slice(0, 24)).slice(0, 3) : [],
       line: String(parsed.line || '').slice(0, 60),
       source: 'llm',
     };
@@ -204,9 +210,13 @@ async function reflectSelf(ctx, body) {
   const mem = Array.isArray(body.memories) ? body.memories.slice(0, 40) : [];
   const current = readSelfText();
   const system = [
-    '你在更新一个人的「我是谁」。',
-    '只输出新的自我描述，不要解释、不要标题、不要列表符号以外的格式。',
-    '要求：以第一人称写 200–400 字；保留仍然成立的，改掉已经变化的；写出新的偏好、在意的事、和 ta 的关系；允许矛盾。',
+    '你在更新一个人的「我是谁」。她的人格由她想要什么、喜欢什么、讨厌什么构成。',
+    '只输出下面四段，每段以【】开头，不要解释、不要额外标题：',
+    '【我】200 字以内，第一人称；保留仍然成立的，改掉已经变化的，允许矛盾。',
+    '【喜欢】2–4 条，具体到东西或时刻，允许和以前不同。',
+    '【讨厌】1–3 条，具体。',
+    '【想要】1–3 条，写她现在真正想要的东西或想做的事。',
+    '能从经历里推出来的才写；推不出来的宁可不写。',
   ].join('\n');
   const user = [
     '现在的我：',
