@@ -441,6 +441,9 @@
 
   var OUR_CLIPS = [
     { id: '自制:浇水-A', name: '浇水-A', file: '自制-浇水-A.webm', cat: '打扫', source: 'ours' },
+    { id: '自制:看书-开始', name: '看书-开始', file: '自制-看书-开始.webm', cat: '看书', source: 'ours' },
+    { id: '自制:看书-循环', name: '看书-循环', file: '自制-看书-循环.webm', cat: '看书', source: 'ours' },
+    { id: '自制:看书-结束', name: '看书-结束', file: '自制-看书-结束.webm', cat: '看书', source: 'ours' },
     { id: '自制:扫地-B', name: '扫地-B', file: '自制-扫地-B.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-A', name: '扫地-A', file: '自制-扫地-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-D', name: '扫地-D', file: '自制-扫地-D.webm', cat: '打扫', source: 'ours' },
@@ -1743,8 +1746,17 @@
         targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
         if (state.char) state.char.obj.playExtra('自制:浇水-A');
       },
-      feed: function () { if (PR.roomlife) PR.roomlife.feedCat(); },
-      tidy: function () { if (PR.roomlife) PR.roomlife.tidyBed(); },
+      read: function () {
+        if (state.char && state.char.obj && state.char.obj.startRead) state.char.obj.startRead();
+      },
+      feed: function () {
+        if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
+        if (PR.roomlife) PR.roomlife.feedCat();
+      },
+      tidy: function () {
+        if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
+        if (PR.roomlife) PR.roomlife.tidyBed();
+      },
     });
     roomLifeRefresh();
   }
@@ -1891,6 +1903,11 @@
       }
     } catch (err) { /* ignore */ }
     createCharacter();
+    if (state.char && state.char.obj && state.char.obj.registerClip) {
+      state.char.obj.registerClip('readStart', '自制-看书-开始.webm', { where: 'home', next: 'readLoop' });
+      state.char.obj.registerClip('readLoop', '自制-看书-循环.webm', { where: 'home', loop: true });
+      state.char.obj.registerClip('readEnd', '自制-看书-结束.webm', { where: 'home', next: 'home' });
+    }
     if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
     if (PR.memory) PR.memory.load();
     if (PR.roomlife) {
@@ -2022,6 +2039,14 @@
     }
     if (e.data.type === 'cozy-room-say') {
       if (!state.char || !state.char.obj.playExtra) return;
+      if (state.char.obj.isReading && state.char.obj.isReading()) {
+        if (Math.random() < 0.15) {
+          state.char.obj.stopRead();
+        } else {
+          try { parent.postMessage({ type: 'cozy-room-typing', typing: false }, '*'); } catch (e) {}
+          return;
+        }
+      }
       if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) {
         // Asleep: usually no reply (and no typing indicator), small chance to wake.
         if (Math.random() < 0.08) {

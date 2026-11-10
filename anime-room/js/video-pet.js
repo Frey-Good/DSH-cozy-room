@@ -52,6 +52,7 @@
     var moveAfterClip = false;
     var ambientClock = 0;
     var sleeping = false;
+    var reading = false;
     var sleepClock = 0;
     function isNightHour() {
       var h = typeof window.__forceHour === 'number' ? window.__forceHour : new Date().getHours();
@@ -399,6 +400,7 @@
       },
       setWorkState: function (st) {
         if (Date.now() < manualUntil) return;
+        if (reading) return;
         // A relaxed cycle of work poses instead of one frozen loop.
         if (st === 'success' || st === 'error') stopWorkCycle();
         if (!st || st === 'idle') stopWorkCycle();
@@ -454,6 +456,25 @@
         }
         return true;
       },
+      registerClip: function (key, file, opts) {
+        addUrlClip(key, file, opts || {});
+        return true;
+      },
+      startRead: function () {
+        if (reading) return false;
+        sleeping = false;
+        reading = true;
+        stopWorkCycle();
+        goto('readStart');
+        return true;
+      },
+      stopRead: function () {
+        if (!reading) return false;
+        reading = false;
+        goto('readEnd');
+        return true;
+      },
+      isReading: function () { return !!reading; },
       getClip: function () { return current; },
       isSleeping: function () { return !!sleeping; },
       getPos: function () { return pos; },
