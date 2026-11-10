@@ -77,6 +77,11 @@
     <div id="selfText"></div>
   </div>
 
+  <div class="card self">
+    <h2>她认识的 ta</h2>
+    <div id="userText"></div>
+  </div>
+
   <div class="note">这是她的自我描述，会随着经历和反思慢慢变化。</div>
 </div>
 <script>
@@ -146,6 +151,7 @@ function renderSelf(md) {
 }
 function renderUser(md) {
   const box = document.getElementById('userText');
+  if (!box) return;
   box.innerHTML = '';
   if (!md) { box.innerHTML = '<p class="empty">她还没开始观察 ta。</p>'; return; }
   const lines = md.split('\n');
