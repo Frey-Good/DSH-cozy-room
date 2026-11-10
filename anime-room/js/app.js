@@ -440,6 +440,7 @@
   }
 
   var OUR_CLIPS = [
+    { id: '自制:扫地-B', name: '扫地-B', file: '自制-扫地-B.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-A', name: '扫地-A', file: '自制-扫地-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-D', name: '扫地-D', file: '自制-扫地-D.webm', cat: '打扫', source: 'ours' },
     { id: '自制:看手机-A', name: '看手机-A', file: '自制-看手机-A.webm', cat: '手机', source: 'ours' },

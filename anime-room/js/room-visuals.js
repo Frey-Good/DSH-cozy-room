@@ -77,10 +77,10 @@ PR.roomVisuals = (function () {
     for (var i = 0; i < f.length; i++) {
       var cell = f[i];
       var lv = Math.max(1, Math.min(3, cell.level || 1));
-      var mat = new T.MeshBasicMaterial({ map: dustTex, color: 0xd9d0c0, transparent: true, opacity: 0.35 + lv * 0.12, depthWrite: false });
+      var mat = new T.MeshBasicMaterial({ map: dustTex, color: 0xbfae94, transparent: true, opacity: 0.5 + lv * 0.15, depthWrite: false });
       var m = new T.Mesh(new T.PlaneGeometry(0.96, 0.96), mat);
       m.rotation.x = -Math.PI / 2;
-      m.position.set((cell.gx + 0.5) * 1.0, 0.016 + lv * 0.001, (cell.gz + 0.5) * 1.0);
+      m.position.set((cell.gx + 0.5) * 1.0, 0.05 + lv * 0.002, (cell.gz + 0.5) * 1.0);
       floorLayer.add(m);
     }
   }
@@ -116,7 +116,7 @@ PR.roomVisuals = (function () {
       while (g.children.length < want) {
         var spot = new T.Mesh(
           new T.PlaneGeometry(0.16 + Math.random() * 0.22, 0.16 + Math.random() * 0.22),
-          new T.MeshBasicMaterial({ map: spotTex, color: 0xd9d0c0, transparent: true, opacity: 0.6, depthWrite: false })
+          new T.MeshBasicMaterial({ map: spotTex, color: 0xbfae94, transparent: true, opacity: 0.7, depthWrite: false })
         );
         spot.rotation.x = -Math.PI / 2;
         spot.position.set(
@@ -245,11 +245,27 @@ PR.roomVisuals = (function () {
     })();
   }
 
+  function shineTile(gx, gz) {
+    var mat = new T.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0.55, depthWrite: false, blending: T.AdditiveBlending });
+    var m = new T.Mesh(new T.PlaneGeometry(0.96, 0.96), mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set((gx + 0.5), 0.07, (gz + 0.5));
+    scene.add(m);
+    var t0 = performance.now();
+    (function fade() {
+      var k = (performance.now() - t0) / 700;
+      if (k >= 1) { scene.remove(m); mat.dispose(); m.geometry.dispose(); return; }
+      mat.opacity = 0.55 * (1 - k);
+      requestAnimationFrame(fade);
+    })();
+  }
+
   function celebrate(kind, ref) {
     if (!scene) return;
     if (kind === 'clean' && ref && typeof ref.gx === 'number' && typeof ref.gz === 'number') {
       fadeFloor(ref.gx, ref.gz);
       sparkleAt((ref.gx + 0.5), 0.08, (ref.gz + 0.5));
+      shineTile(ref.gx, ref.gz);
       return;
     }
     if (!ref) return;
