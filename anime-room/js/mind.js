@@ -71,6 +71,27 @@ PR.mind = (function () {
       return { kind: cmd.kind, refused: true, line: line };
     }
 
+    // nothing to do? say so instead of pretending
+    try {
+      var room = PR.store && PR.store.state && PR.store.state.room;
+      if (cmd.kind === 'clean') {
+        var dirty = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList().filter(function (x) { return x.kind === 'floor' || x.kind === 'item'; }) : [];
+        if (!dirty.length) return { kind: 'clean', refused: false, line: '现在挺干净的，不用扫。' };
+      }
+      if (cmd.kind === 'water') {
+        var plants = (room && room.plants) || [];
+        if (plants.length && plants.every(function (p) { return p.water >= 2; })) return { kind: 'water', refused: false, line: '花还精神着呢。' };
+      }
+      if (cmd.kind === 'feed') {
+        var fed = room && room.cat && room.cat.fedAt ? (Date.now() - room.cat.fedAt) : 1e12;
+        if (fed < 6 * 3600 * 1000) return { kind: 'feed', refused: false, line: '猫刚吃过。' };
+      }
+      if (cmd.kind === 'tidy') {
+        var tidy = room && room.bed && room.bed.tidyAt ? (Date.now() - room.bed.tidyAt) : 1e12;
+        if (tidy < 4 * 86400000) return { kind: 'tidy', refused: false, line: '床还没乱。' };
+      }
+    } catch (e) {}
+
     rebellion = clamp(rebellion + 6, 0, 100);
     closeness = clamp(closeness + 2, 0, 100);
     if (handlers[cmd.kind]) {
