@@ -2016,6 +2016,7 @@
       state.chorePauseUntil = Date.now() + 15000;
       if (PR.memory) {
         PR.memory.add('chat', 'ta 说「' + String(e.data.text || '').slice(0, 60) + '」', 5, ['聊天']);
+        PR.memory.touch(String(e.data.text || ''));
       }
       var userText = String(e.data.text || '');
       var cmd = PR.mind ? PR.mind.handle(userText) : null;
@@ -2145,6 +2146,7 @@
       return maybeChore(true);
     },
     debugMemory: function () { return PR.memory ? PR.memory.list() : []; },
+    markObtained: function (keyword) { return PR.memory ? PR.memory.wantObtained(keyword) : false; },
     debugDust: function (lv) {
       if (!PR.store) return null;
       var level = Math.max(1, Math.min(3, lv || 1));

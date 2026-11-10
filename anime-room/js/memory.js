@@ -100,7 +100,8 @@ PR.memory = (function () {
       if (m.baseImportance >= 9) continue;
       var days = (now - (m.lastMentioned || m.ts)) / DAY;
       if (days < 1) continue;
-      var drop = 0.15 * (1 - m.importance / 10) * Math.floor(days);
+      var kindRate = m.kind === 'want' ? 0.3 : (m.kind === 'obtained' ? 0.25 : 1);
+      var drop = 0.15 * kindRate * (1 - m.importance / 10) * Math.floor(days);
       if (drop <= 0) continue;
       m.importance = Math.max(0, m.importance - drop);
       m.lastMentioned = now;
@@ -110,6 +111,37 @@ PR.memory = (function () {
       }
     }
     if (changed) persist();
+  }
+
+  // re-mention: touch memories whose tags appear in the new text
+  function touch(text) {
+    var t = String(text || '');
+    if (!t) return 0;
+    var list = all();
+    var n = 0;
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      var hit = false;
+      for (var j = 0; j < (m.tags || []).length; j++) {
+        if (t.indexOf(m.tags[j]) >= 0) { hit = true; break; }
+      }
+      if (hit) { m.lastMentioned = Date.now(); n += 1; }
+    }
+    if (n) persist();
+    return n;
+  }
+
+  function wantObtained(keyword) {
+    var list = all();
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (list[i].kind === 'want' && list[i].text.indexOf(keyword) >= 0) {
+        add('obtained', '我想要「' + keyword + '」，现在得到了', 8, ['得到', keyword]);
+        list[i].importance = Math.max(0, list[i].importance - 6);
+        persist();
+        return true;
+      }
+    }
+    return false;
   }
 
   function search(query, k) {
@@ -142,11 +174,24 @@ PR.memory = (function () {
       if (!j || !j.ok) return false;
       s.self = j.text;
       s.lastReflect = Date.now();
+      function section(name) {
+        var re = new RegExp('【' + name + '】([\\s\\S]*?)(?=【|$)');
+        var m = re.exec(j.text || '');
+        if (!m) return [];
+        return m[1].split('\n').map(function (x) {
+          return x.replace(/^[-•*\d.、\s]+/, '').trim();
+        }).filter(function (x) { return x.length > 0; });
+      }
+      var top = section('最想要');
+      var wants = section('想要');
+      s.topWant = top[0] || '';
+      if (top[0]) add('want', top[0], 9, ['想要', '最想要']);
+      wants.forEach(function (w) { add('want', w, 7, ['想要']); });
       add('reflection', '我重新想了想自己是什么样的人', 8, ['反思']);
       persist();
       return true;
     }).catch(function () { return false; });
   }
 
-  return { add: add, list: all, decay: decay, search: search, load: load, persist: persist, reflect: reflect };
+  return { add: add, list: all, decay: decay, search: search, load: load, persist: persist, reflect: reflect, touch: touch, wantObtained: wantObtained };
 })();
