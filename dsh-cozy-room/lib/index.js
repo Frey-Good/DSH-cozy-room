@@ -282,7 +282,10 @@ async function reflectSelf(ctx, body) {
   ].filter((x) => x !== null).join('\n');
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SELF_FILE, head, 'utf8');
-  return { ok: true, text };
+  if (taPart) {
+    fs.writeFileSync(USER_FILE, '# 我认识的 ta\n\n' + taPart + '\n\n> 更新于 ' + new Date().toLocaleString('zh-CN') + '\n', 'utf8');
+  }
+  return { ok: true, text: selfTextClean, user: taPart };
 }
 
 async function ensureIdentity(ctx) {
