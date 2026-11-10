@@ -780,7 +780,8 @@
               if (state.char && state.char.obj) state.char.obj.playExtra('点击回应-开心跃动');
             }, 2200);
           }
-          say('都收拾好啦。', 2400);
+          if (PR.quip) PR.quip.get('刚把房间收拾完', '都收拾好啦。').then(function (t) { say(t, 2400); });
+        else say('都收拾好啦。', 2400);
         }
       } catch (e) {}
     }, 2800);
@@ -867,7 +868,8 @@
       // At night she is not a toy: poke her awake and she gets grumpy, then
       // rolls back over. (The desktop pet card has its own 3-click wake rule.)
       if (state.night) {
-        say(pickLine(['唔…别吵…', '我还困着呢…', '再睡五分钟…']), 2600);
+        if (PR.quip) PR.quip.get('睡着被吵醒，有点不情愿', '唔…别吵…').then(function (t) { say(t, 2600); });
+        else say('唔…别吵…', 2600);
         // A little annoyed wiggle instead of a full animation switch.
         var base = ch.obj.baseScale || 1;
         var t0 = performance.now();
@@ -890,7 +892,8 @@
     ch.obj.play('wave');
     ch.idleSince = performance.now();
     if (PR.bus) PR.bus.emit('pet:touch', { clip: 'wave' });
-    say(pickLine(['嗯？', '我在～', '怎么啦？']), 1600);
+        if (PR.quip) PR.quip.get('被轻轻戳了一下', '嗯？').then(function (t) { say(t, 1600); });
+        else say('嗯？', 1600);
   }
 
   function pickLine(lines) {
@@ -946,7 +949,8 @@
     var h = (typeof window.__COZY_HOUR === 'number') ? window.__COZY_HOUR : d.getHours();
     if (h >= 1 && h < 5 && !nightTalk.urged) {
       nightTalk.urged = true;
-      say('一点了…去睡觉吧。', 5000);
+        if (PR.quip) PR.quip.get('凌晨一点了，想催 ta 睡觉', '一点了…去睡觉吧。').then(function (t) { say(t, 5000); });
+        else say('一点了…去睡觉吧。', 5000);
       setTimeout(function () {
         if (!state.char) return;
         if (state.char.obj.play) state.char.obj.play('sleep');
@@ -958,7 +962,8 @@
     if (nightTalk.lines < 3 && now - nightTalk.last > 20 * 60 * 1000) {
       nightTalk.last = now;
       nightTalk.lines += 1;
-      say(pickLine(['还在忙呀…', '我陪你一会儿。', '别太晚了。']), 3200);
+        if (PR.quip) PR.quip.get('深夜看到 ta 还在忙', '还在忙呀…').then(function (t) { say(t, 3200); });
+        else say('还在忙呀…', 3200);
     }
   }
 
@@ -1945,7 +1950,8 @@
       }
       PR.bus.on('room:slip', function () {
         if (PR.roomVisuals && state.char) PR.roomVisuals.slip(state.char.obj.root);
-        say('哎哟…', 2000);
+        if (PR.quip) PR.quip.get('踩到脏地滑了一跤', '哎哟…').then(function (t) { say(t, 2000); });
+        else say('哎哟…', 2000);
         if (PR.achievements) PR.achievements.event('slip');
       });
     }

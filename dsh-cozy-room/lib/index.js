@@ -160,6 +160,46 @@ function timeLine() {
   return `${now.getMonth() + 1}月${now.getDate()}日 ${slot} ${String(h).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
+async function quipReply(ctx, body) {
+  const llm = ctx.llm;
+  const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
+  if (!llm || typeof llm.stream !== 'function' || !sel || !sel.provider || !sel.model) {
+    return { ok: false, reason: 'llm-missing' };
+  }
+  const id = readIdentity() || {};
+  const name = id.name || '小蓝';
+  const selfText = readSelfText().slice(0, 1200);
+  const system = [
+    '你是「' + name + '」。',
+    selfText,
+    '现在只说一句很短的日常话，不超过 20 个字。',
+    '要求：第一人称；像随口嘀咕；不写动作描写、不用括号、不加引号、不提“人设/设定”；不要问问题。',
+  ].filter(Boolean).join('\n');
+  const user = '此刻：' + String(body.kind || '发着呆') + '。说一句。';
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 10000);
+  const out = [];
+  try {
+    for await (const chunk of llm.stream({
+      provider: sel.provider,
+      model: sel.model,
+      sessionId: 'dsh-cozy-room:quip',
+      system,
+      messages: [{ role: 'user', content: [{ type: 'text', text: user }], source: { kind: 'user' } }],
+      temperature: 1,
+      reasoningEffort: 'off',
+      signal: ac.signal,
+    })) streamText(chunk, out);
+  } catch (error) {
+    return { ok: false, reason: String(error && error.message) };
+  } finally {
+    clearTimeout(timer);
+  }
+  let text = out.join('').trim().replace(/^["“”]|["“”]$/g, '').replace(/\s+/g, '');
+  if (!text) return { ok: false, reason: 'empty' };
+  return { ok: true, text: text.slice(0, 28) };
+}
+
 async function chatReply(ctx, body) {
   const llm = ctx.llm;
   if (!llm || typeof llm.stream !== 'function') return { ok: false, reason: 'llm-missing' };
@@ -550,6 +590,25 @@ export function apply(ctx) {
           let body = {};
           try { body = JSON.parse(raw || '{}'); } catch (e) {}
           reflectSelf(ctx, body).then((result) => {
+            if (res.writableEnded || res.headersSent) return;
+            res.writeHead(result.ok ? 200 : 502, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(result));
+          }).catch((error) => {
+            if (res.writableEnded || res.headersSent) return;
+            res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, reason: String(error && error.message) }));
+          });
+        });
+        return;
+      }
+
+      if (file === '/quip' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; if (raw.length > 20000) req.destroy(); });
+        req.on('end', () => {
+          let body = {};
+          try { body = JSON.parse(raw || '{}'); } catch (e) {}
+          quipReply(ctx, body).then((result) => {
             if (res.writableEnded || res.headersSent) return;
             res.writeHead(result.ok ? 200 : 502, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify(result));
