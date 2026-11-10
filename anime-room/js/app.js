@@ -440,6 +440,7 @@
   }
 
   var OUR_CLIPS = [
+    { id: '自制:浇水-A', name: '浇水-A', file: '自制-浇水-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-B', name: '扫地-B', file: '自制-扫地-B.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-A', name: '扫地-A', file: '自制-扫地-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-D', name: '扫地-D', file: '自制-扫地-D.webm', cat: '打扫', source: 'ours' },
@@ -699,7 +700,7 @@
   // reset), so hooking refreshAnchors() there covers all of them.
   var CHORE_CLIP = {
     clean: '自制:扫地-A',
-    water: '原地蹲下玩玩具汽车',
+    water: '自制:浇水-A',
     tidy: '工作状态-清点归档',
     feed: '原地蹲下玩玩具汽车',
   };
@@ -1733,7 +1734,7 @@
         var room = PR.store && PR.store.state && PR.store.state.room;
         var plant = room && room.plants && room.plants[0];
         if (plant && PR.roomlife) PR.roomlife.water(plant.id);
-        if (state.char) state.char.obj.playExtra('原地蹲下玩玩具汽车');
+        if (state.char) state.char.obj.playExtra('自制:浇水-A');
       },
       feed: function () { if (PR.roomlife) PR.roomlife.feedCat(); },
       tidy: function () { if (PR.roomlife) PR.roomlife.tidyBed(); },
