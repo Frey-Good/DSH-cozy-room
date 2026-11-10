@@ -2214,43 +2214,7 @@
     return true;
   }
 
-  function resolveMoves(moves) {
-    var placed = [];
-    var out = [];
-    moves.slice().sort(function (a, b) {
-      return (b.it.def.w * b.it.def.d) - (a.it.def.w * a.it.def.d);
-    }).forEach(function (m) {
-      var def = m.it.def;
-      var f = footprint(def, m.rot);
-      var best = null;
-      for (var ring = 0; ring <= 14 && !best; ring++) {
-        var step = ring * 0.25;
-        var cands = ring === 0 ? [[m.x, m.z]] : [
-          [m.x + step, m.z], [m.x - step, m.z], [m.x, m.z + step], [m.x, m.z - step],
-          [m.x + step, m.z + step], [m.x - step, m.z - step],
-          [m.x + step, m.z - step], [m.x - step, m.z + step],
-        ];
-        for (var i = 0; i < cands.length; i++) {
-          var x = cands[i][0], z = cands[i][1];
-          if (x - f.w / 2 < 0.2 || z - f.d / 2 < 0.2 || x + f.w / 2 > 7.8 || z + f.d / 2 > 7.8) continue;
-          var ok = true;
-          for (var j = 0; j < placed.length; j++) {
-            var p = placed[j];
-            if (Math.abs(p.x - x) < (p.w + f.w) / 2 + 0.08 && Math.abs(p.z - z) < (p.d + f.d) / 2 + 0.08) { ok = false; break; }
-          }
-          if (ok) { best = { x: x, z: z }; break; }
-        }
-      }
-      var bx = best ? best.x : m.x;
-      var bz = best ? best.z : m.z;
-      if (!def.flat) placed.push({ x: bx, z: bz, w: f.w, d: f.d });
-      out.push({ it: m.it, x: bx, z: bz, rot: m.rot, fx: m.fx, fz: m.fz });
-    });
-    return out;
-  }
-
   function animateArrangement(moves) {
-    moves = resolveMoves(moves);
     var t0 = performance.now();
     (function step() {
       var k = Math.min(1, (performance.now() - t0) / 700);
