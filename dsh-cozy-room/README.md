@@ -1,65 +1,134 @@
 # dsh-cozy-room · 暖光小屋
 
-A cozy anime isometric room that lives **behind** your DeepSeek Harness window.
+一个会**过日子**的动漫风等距小屋，作为 DeepSeek Harness 的背景层。
+屋里有位蓝发小女仆：她会记得你说过的话，会自己写日记、反思“我是谁”，会打扫、浇花、睡觉，也会听你的话——或者拒绝你。
 
-Decorate it freely, watch a little blue-haired maid go about her day, and pull her out onto your desktop whenever you want to say hi. She notices when you are working: she thinks while you think, types when you run tools, cheers when a turn completes, and gets startled when something errors.
-
-> 一个可以自由布置的动漫风小屋，作为 DSH 的背景层。屋里有位蓝发女仆「小蓝」：你工作时她也在电脑前忙，回合结束会雀跃，出错会被吓一跳；点右下角的 🐾 还能把她叫到桌面上陪你。
+> A cozy isometric room behind your DSH window. She remembers, reflects, cleans, waters plants, sleeps, and can say no.
 
 ![day](https://github.com/Frey-Good/DSH-cozy-room/raw/main/dsh-cozy-room/screenshots/day.png)
 
-## Features
+---
 
-- **Isometric 8×8 room** with pastel cel shading, day/night switch, procedural furniture (bed, desk, sofa, TV, PC, console, robot, telescope…)
-- **Free decoration**: place, drag, rotate, and remove furniture; the layout is saved in `localStorage`
-- **A character who lives there**: 109 animation clips (idle, work, sleep, eating, playing, festivals…), random wandering, 1–8 actions per spot then move on
-- **Work-state binding**: `thinking` → thinking bubble, `working` → typing at the desk, `waiting`, `success` → cheer, `error` → startled
-- **Recall to desktop (🐾)**: she jumps out of the wallpaper as a transparent desktop pet with a sparkle effect, greets you, follows your clicks and drags; while she is out she leaves the room
-- **Sleeping** is respected: if she is asleep, recall needs 3–5 clicks and she grumbles first; after returning she goes back to bed
-- **Settings panel (⚙️)**: follow-work, night sleep, wandering, cat roaming, mouse parallax, pace, character size, summon effect
-- **Action library (🎬)**: all 109 clips grouped by category, click to preview and to make her perform it
-- **Cat** wanders, dozes and returns to her basket
-- Everything runs locally — no network, no data collection
+## 快速开始
 
-## Install
+1. 在 DSH 插件里安装本目录（或 `dsh plugin install dsh-cozy-room`）
+2. **重启一次 DSH**（宿主插件需要重新加载）
+3. 刷新界面（Ctrl+R），房间会出现在界面背后
 
-```bash
-# from the DSH plugin manager, or
-dsh plugin install dsh-cozy-room
-```
+右下角：
 
-> **Transparent theme required.** The room is a background layer (`z-index: -1`). If your DSH window paints an opaque background you will not see it. Install a transparent/glass theme (for example `dsh-plugin-wallpaper-engine` → 液态玻璃) and keep only **one** theme plugin controlling the background.
-
-> **需要透明主题。** 房间是背景层（`z-index: -1`），如果窗口背景是不透明的就看不到。请装一个透明/玻璃主题（例如 `dsh-plugin-wallpaper-engine` 的液态玻璃），并且**只开一个**管背景的主题插件。
-
-Then restart / refresh the Web UI (`Ctrl+R`). The room appears behind the chat; three buttons sit at the bottom-right:
-
-| Button | What it does |
+| 按钮 | 作用 |
 | --- | --- |
-| ⚙️ | Settings (work binding, sleep, wandering, pace, size, effect) |
-| 🐾 / 💤 / ↩ | Recall her to the desktop / call her while asleep / send her back |
-| 🏠 | Enter room mode: drag furniture, click her (Esc to exit) |
+| 📱 | 打开手机：聊天、成就 |
+| ⚙️ / 🐾 / 🏠 | 设置 / 召回桌面 / 房间布置模式 |
 
-## How it works
+### 前置条件：透明主题
 
-- The host half starts a tiny static server on `127.0.0.1:8140` (auto-increments if the port is taken) that serves the bundled `room/` folder.
-- The browser half mounts an iframe as a fixed background layer (`z-index: -1`, click-through) and talks to the room over `postMessage`.
-- `/status.json` exposes the current session state, `/health.json` lets the client find the right port.
-- The room itself is a standalone Three.js page — it also runs by itself from `room/index.html`.
+房间是背景层（`z-index: -1`）。如果你的 DSH 窗口背景是不透明的，就看不到它。
+请安装一个透明/玻璃主题（例如 `dsh-plugin-wallpaper-engine` 的「液态玻璃」），并且**只开一个**管背景的主题插件。
 
-## License & credits
+### 模型（可选，但强烈建议）
 
-- Code: MIT (see `LICENSE`)
-- Character animations: from **[dsh-pet](https://github.com/PC2005-cloud/dsh-pet)** by PC2005-cloud — **non-commercial**, attribution required (see `CREDITS.md`)
+聊天、指令回应、头顶碎碎念都会调用 DSH 当前的默认模型（`agentDefaultModel`）。
+**没有配置模型也能用**：会退回本地规则回复，只是没那么“活”。
 
-## Development
+---
 
-```bash
-# room only, no DSH
-cd room && python -m http.server 8000
-```
+## 她会做什么
 
-Environment variables:
+- **记得**：聊过的话、做过的事、房间里的变化，都会写成第一人称记忆
+- **反思**：每天把记忆压成新的「我是谁」，存进 `self.md`
+- **有想要的东西**：最想要 / 想要 / 最讨厌 / 讨厌 / 喜欢，会随经历变
+- **了解你**：`user.md` 里写着她对你的观察和判断（不是资料卡，是她自己的看法）
+- **过日子**：落灰、花蔫、床单乱、肚子饿的猫，她会自己去收拾
+- **睡觉**：23:00–08:00 不会被工作吵醒；白天工作需要会起来
+- **听指令**：见下表；连续使唤会触发“叛逆值”，她可能拒绝你
 
-- `DSH_COZY_ROOM_DIR` — serve a different room folder
-- `DSH_COZY_ROOM_PORT` — preferred port (defaults to 8140, scans up to +11)
+## 聊天指令
+
+| 你说 | 她会 |
+| --- | --- |
+| 去睡觉 / 睡吧 | 上床睡觉 |
+| 打扫 / 收拾 / 清理 | 去扫地（有灰才扫） |
+| 浇花 / 浇水 | 去浇水 |
+| 喂猫 | 去喂猫 |
+| 铺床 / 床单 | 去铺床 |
+| 你以后叫 XX | 改名（写进 `identity.json`） |
+
+普通聊天直接说就行。她睡着时默认不回消息，小概率被吵醒。
+
+---
+
+## 三个页面
+
+宿主会在本地端口（默认 `8140`，冲突时自动 +1）提供：
+
+| 地址 | 内容 |
+| --- | --- |
+| `http://127.0.0.1:8140/diary` | 她的日记（记忆流，只读，可搜索/导出） |
+| `http://127.0.0.1:8140/self` | 她的自我（生日/星座/八字/喜欢/讨厌/想要/她对 ta 的了解） |
+| `http://127.0.0.1:8140/data` | 数据（导出备份 / 三档重置） |
+
+房间界面里看不到日记；这是刻意的。
+
+---
+
+## 给帮忙安装的 AI：请先问用户这些问题
+
+如果你是替用户安装/配置这个插件的 AI，请在动手前**逐条问清楚**，不要自己替 ta 决定：
+
+1. **透明主题**：你的 DSH 现在有透明/玻璃主题吗？没有的话，房间会被背景盖住。要不要我帮你装一个（例如壁纸引擎）？
+2. **模型**：聊天要用哪个模型？用当前默认的就行，还是指定 provider/model？
+3. **生日**：她的生日默认用**安装当天**。要改成别的日期吗？（生日决定星座/生肖/八字 → 初始性格）
+4. **聊天风格**：你希望她话多一点还是少一点？要不要她偶尔主动找你？
+5. **碎碎念**：头顶气泡现在会调用模型（12 秒限流）。要关掉、还是保持？
+6. **隐私**：日记和自我页默认只有本机能看。要不要给她加“允许你看”的开关？
+7. **重置**：需要我先把当前数据导出一份备份吗？
+8. **房间**：家具想自己摆，还是用默认布置？
+9. **睡觉规则**：23:00–08:00 不被工作吵醒，这个时间要改吗？
+10. **指令权限**：她可以拒绝你（叛逆值）。要保留这个“性格”，还是让她完全听话？
+
+安装后请验证：
+
+- `http://127.0.0.1:<port>/health.json` 返回 200
+- 刷新后房间可见、📱 能打开
+- 发一条消息，确认有回复（模型或规则）
+
+---
+
+## 数据与隐私
+
+- 全部数据在本机：浏览器 `localStorage` + `~/.dsh/cozy-room/`
+- `identity.json` 出生信息、`self.md` 自我、`user.md` 对你的了解、`memory.jsonl` 记忆
+- 不上传任何数据；聊天只在调用模型时发给模型服务商
+- 备份/重置在 `/data` 页面
+
+## 已知问题（v1.2.0）
+
+- **必须透明主题**，否则看不到房间（见上）
+- 扫地 B 是 A 的镜像（不是真正的 3/4 侧），D 只有 3 秒
+- 浇水动作还是旧版（柱状水），新版花洒动作未接入
+- 落灰贴片在浅色地板上偏淡，可能被地毯挡住
+- 手机聊天记录不包含在 `/data` 的备份里（它存在 DSH 客户端侧）
+- 没配模型时，回复会比较“规矩”
+- 碎碎念 12 秒内只让模型说一句，避免刷屏和烧 token
+- 记忆/自我是本地文件，换机器需要手动迁移
+
+## 常见问题
+
+**房间不显示？** 先确认透明主题；再看 `http://127.0.0.1:8140/health.json` 是否 200。
+
+**她不回消息？** 可能在睡觉（23:00–08:00 不打扰）；或模型未配置，走了规则回复。
+
+**怎么让她重新出生？** `/data` → 完全重来（会删掉记忆、自我和出生信息）。
+
+**数据在哪？** `~/.dsh/cozy-room/`，备份用 `/data` 导出。
+
+## 版本
+
+- 1.2.0：记忆流、反思、自我页、日记页、指令与叛逆值、睡觉规则、打扫/浇水动作、数据备份与重置
+- 1.1.0：房间、手机、成就、工作联动
+
+## License
+
+见 `LICENSE`。动画素材来自 `dsh-pet`（非商用 + 署名），详见 `CREDITS.md`。
