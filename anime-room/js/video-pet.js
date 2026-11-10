@@ -94,6 +94,32 @@
     function workClip() {
       return WORK_CLIPS[workState] || 'think';
     }
+
+    // Work is a slow cycle of poses; it ends with cheer on success.
+    var WORK_LOOP = ['code', 'busy', 'think', 'busy'];
+    var workTimer = null;
+    var workLoopIdx = 0;
+
+    function stopWorkCycle() {
+      if (workTimer) {
+        clearInterval(workTimer);
+        workTimer = null;
+      }
+    }
+
+    function startWorkCycle() {
+      stopWorkCycle();
+      workLoopIdx = 0;
+      goto(WORK_LOOP[0]);
+      workTimer = setInterval(function () {
+        if (!working || sleeping) return;
+        if (Date.now() < manualUntil) return;
+        if (pending || fadeDir !== 0) return;
+        if (!isWork(current)) return;
+        workLoopIdx = (workLoopIdx + 1) % WORK_LOOP.length;
+        goto(WORK_LOOP[workLoopIdx]);
+      }, 9000);
+    }
     var queue = [];
     var lastAmbient = null;
 
@@ -352,6 +378,7 @@
           if (PR.roomlife && !PR.roomlife.canSleep()) {
             try { PR.roomlife.tidyBed(); } catch (e) {}
           }
+          stopWorkCycle();
           sleeping = true;
           sleepClock = 0;
           goto('sleepStart');
@@ -372,6 +399,9 @@
       },
       setWorkState: function (st) {
         if (Date.now() < manualUntil) return;
+        // A relaxed cycle of work poses instead of one frozen loop.
+        if (st === 'success' || st === 'error') stopWorkCycle();
+        if (!st || st === 'idle') stopWorkCycle();
         // Night window (23:00-08:00): asleep is sacred, work waits.
         // Daytime: work wakes her up and she goes to the desk.
         if (sleeping) {
@@ -385,14 +415,19 @@
           return;
         }
         st = st || 'idle';
-        if (st === workState) return;
         workState = st;
         working = st !== 'idle';
         if (!working) {
+          stopWorkCycle();
           if (isWork(current) || current === 'cheer' || current === 'scared') finishAction();
           return;
         }
-        goto(workClip());
+        if (st === 'success' || st === 'error') {
+          stopWorkCycle();
+          goto(workClip());
+          return;
+        }
+        if (!workTimer) startWorkCycle();
       },
       setWorking: function (on) {
         this.setWorkState(on ? 'working' : 'idle');
@@ -436,6 +471,7 @@
         sleeping = false;
         workState = 'idle';
         working = false;
+        stopWorkCycle();
         // A standing clip must never play on the bed: move back to a floor spot first.
         if (pos === 'bed') applyPose('home', false);
         if (!clips[id]) addUrlClip(id, item.file, { where: 'here', next: 'home' });
@@ -495,6 +531,7 @@
           return true;
         }
         if (name === 'sleep') {
+          stopWorkCycle();
           sleeping = true;
           sleepClock = 0;
           goto('sleepStart');
