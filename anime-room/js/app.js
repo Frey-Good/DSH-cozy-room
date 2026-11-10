@@ -1874,6 +1874,14 @@
   }
 
   function startGame() {
+    // One-time repair: the removed "arrange" feature may have overwritten the
+    // saved layout. Restore the built-in default layout once, then never again.
+    try {
+      if (!localStorage.getItem('cozy-room-layout-restored-v1')) {
+        localStorage.setItem('cozy-room-layout-restored-v1', '1');
+        resetLayout();
+      }
+    } catch (err) { /* ignore */ }
     createCharacter();
     if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
     if (PR.memory) PR.memory.load();
