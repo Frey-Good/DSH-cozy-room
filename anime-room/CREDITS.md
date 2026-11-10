@@ -15,6 +15,17 @@
 
 这些动画是 dsh-pet 作者的作品，本仓库只做「在 3D 房间里播放」的集成，不主张对动画素材的版权。
 
+## aboutme-pets（dsh1 动作扩展包）
+
+`assets/webm/aboutme-*.webm` 共 162 段透明动画，来自 **hunmer/aboutme-pets** 的 `pets/dsh1`：
+
+- 来源：https://github.com/hunmer/aboutme-pets （`pets/dsh1`）
+- 上游素材归属：https://github.com/PC2005-cloud/dsh-pet （固定提交 `b78e3fcf92ac78cee569aed7cc27eeb2a8d51757`）
+- 许可：**禁止商用**；二创在公开渠道须署名上游仓库（见该包 `pets/dsh1/NOTICE.txt` / `LICENSE-code.txt` / `LICENSE-assets.txt`）
+- 用途：动作库扩展（162 条，`id` 前缀 `aboutme:`），由 `js/aboutme-actions.js` 注册
+- 派生方式：上游透明 WebP 精灵图（640×360 / 12fps / 8 列）经 `tools/spritesheet_to_webm.py` 转为 VP9 alpha WebM；转换不授予额外授权
+- 本仓库仅做「在 3D 房间里播放」的集成，不主张对动画素材的版权；**不要用于付费内容**
+
 ## 公开到 GitHub 时请注意
 
 1. **保留出处**：README / 本文件里保留 dsh-pet 的链接与作者名
