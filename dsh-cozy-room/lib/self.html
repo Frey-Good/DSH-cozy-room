@@ -90,6 +90,26 @@ function chips(el, list, cls) {
     el.appendChild(s);
   });
 }
+function parseSections(md) {
+  const out = {};
+  let cur = null;
+  String(md || '').split('\n').forEach(function (raw) {
+    const line = raw.trim();
+    if (!line) return;
+    const m = line.match(/^【(.+?)】(.*)$/);
+    if (m) {
+      cur = m[1];
+      out[cur] = out[cur] || [];
+      const rest = m[2].trim();
+      if (rest) out[cur].push(rest);
+      return;
+    }
+    const b = line.match(/^[-•*]\s*(.+)$/);
+    if (cur && b) out[cur].push(b[1].trim());
+  });
+  return out;
+}
+
 function renderSelf(md) {
   const box = document.getElementById('selfText');
   box.innerHTML = '';
@@ -135,9 +155,13 @@ async function load() {
     document.getElementById('bazi').textContent = (id.bazi && id.bazi.text) || '—';
     chips(document.getElementById('seed'), id.traits || []);
     document.getElementById('seedLine').textContent = id.line || '';
-    chips(document.getElementById('likes'), id.likes || []);
-    chips(document.getElementById('dislikes'), id.dislikes || [], 'dislike');
-    chips(document.getElementById('wants'), id.wants || [], 'want');
+    const sec = parseSections(j.self || '');
+    const likes = (id.likes && id.likes.length) ? id.likes : (sec['喜欢'] || []);
+    const dislikes = (id.dislikes && id.dislikes.length) ? id.dislikes : (sec['讨厌'] || []).concat(sec['最讨厌'] || []);
+    const wants = (sec['最想要'] || []).concat(sec['想要'] || []);
+    chips(document.getElementById('likes'), likes);
+    chips(document.getElementById('dislikes'), dislikes, 'dislike');
+    chips(document.getElementById('wants'), wants.length ? wants : (id.wants || []), 'want');
     renderSelf(j.self || '');
   } catch (err) {
     document.getElementById('selfText').innerHTML = '<p class="empty">读不到：' + err.message + '</p>';
