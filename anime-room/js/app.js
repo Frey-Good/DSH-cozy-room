@@ -1737,8 +1737,10 @@
       },
       water: function () {
         var room = PR.store && PR.store.state && PR.store.state.room;
-        var plant = room && room.plants && room.plants[0];
-        if (plant && PR.roomlife) PR.roomlife.water(plant.id);
+        var plants = (room && room.plants) || [];
+        var wilted = plants.filter(function (p) { return p.water <= 1; });
+        var targets = wilted.length ? wilted : plants.slice(0, 1);
+        targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
         if (state.char) state.char.obj.playExtra('自制:浇水-A');
       },
       feed: function () { if (PR.roomlife) PR.roomlife.feedCat(); },
