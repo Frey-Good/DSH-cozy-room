@@ -201,73 +201,6 @@ async function chatReply(ctx, body) {
   return { ok: true, text: text.slice(0, 120) };
 }
 
-
-async function arrangeRoom(ctx, body) {
-  const llm = ctx.llm;
-  const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
-  if (!llm || typeof llm.stream !== 'function' || !sel || !sel.provider || !sel.model) {
-    return { ok: false, reason: 'llm-missing' };
-  }
-  const items = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
-  if (!items.length) return { ok: false, reason: 'no-items' };
-  const self = readSelfText().slice(0, 1800);
-  const lines = items.map((i) => '- id=' + i.id + ' 名称=' + i.name + ' 宽=' + i.w + ' 深=' + i.d + (i.flat ? ' 平铺' : ''));
-  const system = [
-    '你在布置一个 8×8 的等距小房间。x 向右 0–8，z 向下 0–8；北墙 z=0，西墙 x=0，东墙 x=8（有窗），南墙 z=8。',
-    '规则：',
-    '- 大件靠墙：床靠北墙或西墙；衣柜、书架靠墙；书桌、电脑桌靠东墙窗边；电视靠南墙，沙发面向电视。',
-    '- 中间留出走道，不要堆满；小件（植物、灯、地毯）点缀。',
-    '- 同类的放一起：睡眠区、工作区、休闲区。',
-    '- 按她的喜好微调（见她的自我）。',
-    '只输出 JSON 数组，不要解释、不要代码块：',
-    '[{"id":"...","x":3.2,"z":1.1,"rot":0}]',
-    'rot 只能是 0、1.5708、3.1416、-1.5708。',
-  ].join('\n');
-  const user = '房间尺寸 8×8。\n家具：\n' + lines.join('\n') + '\n\n她的自我：\n' + (self || '（还没有）');
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 30000);
-  const out = [];
-  try {
-    for await (const chunk of llm.stream({
-      provider: sel.provider,
-      model: sel.model,
-      sessionId: 'dsh-cozy-room:arrange',
-      system,
-      messages: [{ role: 'user', content: [{ type: 'text', text: user }], source: { kind: 'user' } }],
-      temperature: 0.8,
-      reasoningEffort: 'off',
-      signal: ac.signal,
-    })) streamText(chunk, out);
-  } catch (error) {
-    return { ok: false, reason: String(error && error.message) };
-  } finally {
-    clearTimeout(timer);
-  }
-  const raw = out.join('').trim();
-  const m = raw.match(/\[[\s\S]*\]/);
-  if (!m) return { ok: false, reason: 'no-json' };
-  let arr;
-  try { arr = JSON.parse(m[0]); } catch (e) { return { ok: false, reason: 'bad-json' }; }
-  if (!Array.isArray(arr)) return { ok: false, reason: 'not-array' };
-  const rots = [0, 1.5708, 3.1416, -1.5708];
-  const byId = {};
-  for (const it of items) byId[it.id] = it;
-  const placements = [];
-  for (const p of arr) {
-    const it = p && byId[p.id];
-    if (!it) continue;
-    let x = Number(p.x), z = Number(p.z);
-    if (!isFinite(x) || !isFinite(z)) continue;
-    const w = Number(it.w) || 0.6, d = Number(it.d) || 0.6;
-    x = Math.max(w / 2 + 0.16, Math.min(8 - w / 2 - 0.16, x));
-    z = Math.max(d / 2 + 0.16, Math.min(8 - d / 2 - 0.16, z));
-    let rot = rots.reduce((a, b) => (Math.abs(b - Number(p.rot)) < Math.abs(a - Number(p.rot)) ? b : a), 0);
-    placements.push({ id: it.id, x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, rot });
-  }
-  if (!placements.length) return { ok: false, reason: 'empty-placement' };
-  return { ok: true, placements };
-}
-
 async function reflectSelf(ctx, body) {
   const llm = ctx.llm;
   const sel = ctx.agentDefaultModel && ctx.agentDefaultModel.currentSelection ? ctx.agentDefaultModel.currentSelection() : null;
@@ -498,25 +431,6 @@ export function apply(ctx) {
           if (res.writableEnded || res.headersSent) return;
           res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ ok: true, added, total: readMemories().length }));
-        });
-        return;
-      }
-
-      if (file === '/arrange' && req.method === 'POST') {
-        let raw = '';
-        req.on('data', (c) => { raw += c; if (raw.length > 200000) req.destroy(); });
-        req.on('end', () => {
-          let body = {};
-          try { body = JSON.parse(raw || '{}'); } catch (e) {}
-          arrangeRoom(ctx, body).then((result) => {
-            if (res.writableEnded || res.headersSent) return;
-            res.writeHead(result.ok ? 200 : 502, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify(result));
-          }).catch((error) => {
-            if (res.writableEnded || res.headersSent) return;
-            res.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify({ ok: false, reason: String(error && error.message) }));
-          });
         });
         return;
       }

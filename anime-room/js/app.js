@@ -2140,41 +2140,6 @@
   function autoArrange() {
     var movable = state.items.filter(function (it) { return !it.wall; });
     if (!movable.length) return false;
-    var payload = movable.map(function (it) {
-      return { id: it.uid, name: it.def.name, w: it.def.w, d: it.def.d, flat: !!it.def.flat };
-    });
-    toast('她想一想怎么摆…');
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 30000) : null;
-    fetch('/arrange', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: payload }),
-      signal: ctrl ? ctrl.signal : undefined,
-    }).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j || !j.ok || !Array.isArray(j.placements)) {
-        localArrange();
-        return;
-      }
-      var byId = {};
-      j.placements.forEach(function (p) { byId[p.id] = p; });
-      var moves = [];
-      movable.forEach(function (it) {
-        var p = byId[it.uid];
-        if (!p) return;
-        moves.push({ it: it, x: p.x, z: p.z, rot: p.rot, fx: it.x, fz: it.z });
-      });
-      if (!moves.length) { localArrange(); return; }
-      animateArrangement(moves);
-    }).catch(function () { localArrange(); }).finally(function () {
-      if (timer) clearTimeout(timer);
-    });
-    return true;
-  }
-
-  function localArrange() {
-    var movable = state.items.filter(function (it) { return !it.wall; });
-    if (!movable.length) return false;
     var placed = [];
     var order = movable.slice().sort(function (a, b) {
       var fa = a.def.flat ? 1 : 0, fb = b.def.flat ? 1 : 0;
@@ -2210,11 +2175,6 @@
       if (!it.def.flat) placed.push({ x: target.x, z: target.z, w: f.w, d: f.d });
       moves.push({ it: it, x: target.x, z: target.z, rot: target.rot, fx: it.x, fz: it.z });
     });
-    animateArrangement(moves);
-    return true;
-  }
-
-  function animateArrangement(moves) {
     var t0 = performance.now();
     (function step() {
       var k = Math.min(1, (performance.now() - t0) / 700);
@@ -2240,6 +2200,7 @@
       save();
       say(pickLine(['这样是不是好一点？', '我觉得这样顺眼。', '窗边留给光了。', '嗯，就这样。']), 2600);
     })();
+    return true;
   }
 
   window.__purpleRoom = {
