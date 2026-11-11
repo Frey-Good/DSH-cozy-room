@@ -1762,8 +1762,8 @@
       water: function () {
         var room = PR.store && PR.store.state && PR.store.state.room;
         var plants = (room && room.plants) || [];
-        var wilted = plants.filter(function (p) { return p.water <= 1; });
-        var targets = wilted.length ? wilted : plants.slice(0, 1);
+        // a watering session tops up every plant, not only the nearly-dead ones
+        var targets = plants;
         targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
         if (state.char) state.char.obj.playExtra('自制:浇水-A');
       },

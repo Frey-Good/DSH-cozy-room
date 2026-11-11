@@ -49,6 +49,10 @@ PR.roomVisuals = (function () {
 
   function setItems(list) {
     items = (list || []).slice();
+    baseScale = {};
+    items.forEach(function (it) {
+      if (it.group) baseScale[it.uid] = it.group.scale.x || 1;
+    });
     clearSpots();
     refresh();
   }
