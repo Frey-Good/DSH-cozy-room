@@ -705,6 +705,7 @@
     clean: '自制:扫地-A',
     water: '自制:浇水-A',
     tidy: '工作状态-清点归档',
+    wipe: '碎碎念-擦桌碎碎念',
     feed: '原地蹲下玩玩具汽车',
   };
   var CHORE_LINE = {
@@ -723,6 +724,13 @@
     var ch = state.char;
     if (task.kind === 'tidy' && ch && ch.anchors) return { x: ch.anchors.bed.x, z: ch.anchors.bed.z };
     if (task.kind === 'feed' && ch && ch.anchors) return { x: ch.anchors.cat.x, z: ch.anchors.cat.z };
+    if (task.kind === 'wipe') {
+      var wid = task.ref && (task.ref.id || task.ref);
+      for (var wi = 0; wi < state.items.length; wi++) {
+        if (state.items[wi].uid === wid) return { x: state.items[wi].x, z: state.items[wi].z };
+      }
+      return { x: 3.9, z: 4.0 };
+    }
     if (task.kind === 'water') {
       var id = task.ref && (task.ref.id || task.ref);
       for (var i = 0; i < state.items.length; i++) {
@@ -751,8 +759,16 @@
     if (!force && now < (state.chorePauseUntil || 0)) return false;
     if (!force && now < state.choreNextAt) return false;
     var task = null;
-    try { task = PR.roomlife.nextTask({ working: state.working }); } catch (e) { return false; }
-    if (!task || ['clean', 'water', 'tidy', 'feed'].indexOf(task.kind) < 0) return false;
+    try {
+      var dirty = PR.roomlife.dirtyList ? PR.roomlife.dirtyList() : [];
+      var dusty = dirty.filter(function (x) { return x.kind === 'item'; });
+      task = PR.roomlife.nextTask({ working: state.working });
+      // furniture dust has no roomlife task of its own: wipe it before re-sweeping floors
+      if (dusty.length && (!task || task.kind === 'idle' || task.kind === 'work' || task.kind === 'leisure' || task.kind === 'clean')) {
+        task = { kind: 'wipe', ref: { id: dusty[0].id }, priority: (task && task.priority) || 4, reason: '家具落灰' };
+      }
+    } catch (e) { return false; }
+    if (!task || ['clean', 'wipe', 'water', 'tidy', 'feed'].indexOf(task.kind) < 0) return false;
     var spot = choreSpot(task);
     if (!spot) return false;
 
@@ -769,6 +785,7 @@
       if (!c || !PR.roomlife) return;
       try {
         if (c.kind === 'clean') PR.roomlife.clean('floor', c.ref);
+        else if (c.kind === 'wipe') PR.roomlife.clean('item', c.ref);
         else if (c.kind === 'water') PR.roomlife.water(c.ref && (c.ref.id || c.ref));
         else if (c.kind === 'tidy') PR.roomlife.tidyBed();
         else if (c.kind === 'feed') PR.roomlife.feedCat();
@@ -779,7 +796,7 @@
       // everything done: stretch + happy hop, once per cleanup round
       try {
         var nt = PR.roomlife.nextTask();
-        var busy = nt && ['clean', 'water', 'tidy', 'feed'].indexOf(nt.kind) >= 0;
+        var busy = nt && ['clean', 'wipe', 'water', 'tidy', 'feed'].indexOf(nt.kind) >= 0;
         if (!busy && !state.allCleanAt) {
           state.allCleanAt = Date.now();
           if (state.char && state.char.obj && state.char.obj.playExtra) {
@@ -1755,9 +1772,17 @@
         state.char.obj.play('sleep');
       },
       clean: function () {
-        var list = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList().filter(function (x) { return x.kind === 'floor'; }) : [];
-        if (list.length && PR.roomlife) PR.roomlife.clean('floor', list[0]);
-        if (state.char) state.char.obj.playExtra('自制:扫地-A');
+        var all = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList() : [];
+        var dusty = all.filter(function (x) { return x.kind === 'item'; });
+        var floors = all.filter(function (x) { return x.kind === 'floor'; });
+        if (dusty.length && PR.roomlife) {
+          PR.roomlife.clean('item', { id: dusty[0].id });
+          if (state.char) state.char.obj.playExtra('碎碎念-擦桌碎碎念');
+        } else {
+          if (floors.length && PR.roomlife) PR.roomlife.clean('floor', floors[0]);
+          if (state.char) state.char.obj.playExtra('自制:扫地-A');
+        }
+        if (PR.roomVisuals) PR.roomVisuals.refresh();
       },
       water: function () {
         var room = PR.store && PR.store.state && PR.store.state.room;
