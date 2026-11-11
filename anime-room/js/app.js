@@ -2215,6 +2215,7 @@
     applyClockAnchor();
   });
   window.__purpleRoom = {
+    debugAmbient: function () { return (state.char && state.char.obj.playRandomLibrary) ? state.char.obj.playRandomLibrary() : null; },
     get items() { return state.items.length; },
     get char() { return { x: state.char.x, z: state.char.z }; },
     get petPos() { return state.char ? { x: Math.round(state.char.obj.root.position.x * 100) / 100, z: Math.round(state.char.obj.root.position.z * 100) / 100 } : null; },
