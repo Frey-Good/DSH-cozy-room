@@ -1987,6 +1987,12 @@
     spawnCat();
     registerOwnClips();
     postLibrary();
+    if (state.char && state.char.obj.setAmbientPool && PR.actionLibrary) {
+      var pool = PR.actionLibrary.filter(function (e) {
+        return e.file && ['自制:看书', '自制:扫地', '自制:浇水', '自制:看手机'].every(function (p) { return e.id.indexOf(p) !== 0; });
+      });
+      state.char.obj.setAmbientPool(pool);
+    }
     applySettings();
     tickClock();
     applyClockAnchor();
@@ -2180,6 +2186,12 @@
     if (e.data.type === 'cozy-room-library-request') {
       registerOwnClips();
     postLibrary();
+    if (state.char && state.char.obj.setAmbientPool && PR.actionLibrary) {
+      var pool = PR.actionLibrary.filter(function (e) {
+        return e.file && ['自制:看书', '自制:扫地', '自制:浇水', '自制:看手机'].every(function (p) { return e.id.indexOf(p) !== 0; });
+      });
+      state.char.obj.setAmbientPool(pool);
+    }
       return;
     }
     if (e.data.type === 'cozy-room-action') {

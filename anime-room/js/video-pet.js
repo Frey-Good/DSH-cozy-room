@@ -123,6 +123,7 @@
     }
     var queue = [];
     var lastAmbient = null;
+    var extAmbient = [];
 
     function makeVideo(src) {
       var v = document.createElement('video');
@@ -336,7 +337,21 @@
       return work[Math.floor(Math.random() * work.length)];
     }
 
+    // one clip from the whole action library, loaded on demand
+    function playLibraryAmbient() {
+      if (!extAmbient.length) return null;
+      var e = extAmbient[Math.floor(Math.random() * extAmbient.length)];
+      if (!e || !e.id || !e.file) return null;
+      if (!clips[e.id]) addUrlClip(e.id, e.file, { where: 'here', next: 'home' });
+      goto(e.id);
+      return e.id;
+    }
+
     function startAmbient() {
+      if (extAmbient.length && Math.random() < 0.6) {
+        var picked = playLibraryAmbient();
+        if (picked) { actionsAtSpot += 1; return; }
+      }
       var key = energy < 0.35 && Math.random() < 0.55 ? 'yawn' : nextAmbientKey();
       if (!isWork(key)) {
         actionsAtSpot += 1;
@@ -475,6 +490,11 @@
         return true;
       },
       isReading: function () { return !!reading; },
+      setAmbientPool: function (list) {
+        extAmbient = Array.isArray(list) ? list.slice() : [];
+        return extAmbient.length;
+      },
+      playRandomLibrary: function () { return playLibraryAmbient(); },
       getClip: function () { return current; },
       isSleeping: function () { return !!sleeping; },
       getPos: function () { return pos; },
@@ -602,7 +622,7 @@
         // She sleeps until someone wakes her (click / recall / summon).
         // No auto-wake, and DSH work does not wake her either.
 
-        if (!pending && fadeDir === 0 && current === 'idle' && !sleeping && !working && Date.now() > manualUntil) {
+        if (!pending && fadeDir === 0 && current === 'idle' && !sleeping && !reading && !working && Date.now() > manualUntil) {
           ambientClock += dt;
           if (ambientClock > ambientWait) {
             ambientClock = 0;
