@@ -52,6 +52,13 @@ PR.roomVisuals = (function () {
     baseScale = {};
     items.forEach(function (it) {
       if (it.group) baseScale[it.uid] = it.group.scale.x || 1;
+      if (it.def && (it.def.id === 'plant' || it.def.id === 'palm')) {
+        it.group.traverse(function (o) {
+          if (o.isMesh && o.material && o.material.color) {
+            o.userData.__baseColor = o.material.color.clone();
+          }
+        });
+      }
     });
     clearSpots();
     refresh();
@@ -141,15 +148,16 @@ PR.roomVisuals = (function () {
     var stage = 3 - w; // 0 healthy -> 3 wilted
     if (baseScale[item.uid] == null) baseScale[item.uid] = item.group.scale.x || 1;
     var base = baseScale[item.uid];
-    if (stage === 0) {
-      // fully healthy: force the original look, even if a previous stage left residue
-      item.group.scale.setScalar(base);
-      tintGroup(item.group, 0xa8904a, 0);
-      return;
-    }
     var scale = [1, 0.97, 0.92, 0.85][stage];
     item.group.scale.setScalar(base * scale);
-    tintGroup(item.group, 0xa8904a, [0, 0.12, 0.3, 0.55][stage]);
+    var amount = [0, 0.12, 0.3, 0.55][stage];
+    var tint = new T.Color(0xa8904a);
+    item.group.traverse(function (o) {
+      if (!o.isMesh || !o.material || !o.material.color) return;
+      var basis = o.userData.__baseColor;
+      if (!basis) { o.userData.__baseColor = o.material.color.clone(); basis = o.userData.__baseColor; }
+      o.material.color.copy(basis).lerp(tint, amount);
+    });
   }
 
   // ---------------------------------------------------------------- bed
