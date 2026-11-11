@@ -129,7 +129,7 @@
     var variant = opts.variant == null ? 0 : opts.variant;
     var group = def.build(variant);
     var rec = {
-      uid: 'it_' + (spawn._n = (spawn._n || 0) + 1),
+      uid: opts.uid || ('it_' + (spawn._n = (spawn._n || 0) + 1)),
       def: def,
       group: group,
       variant: variant,
@@ -799,7 +799,23 @@
 
   function roomLifeRefresh() {
     if (!PR.roomlife) return;
-    PR.roomlife.setItems(roomLifeItems());
+    var items = roomLifeItems();
+    // Old saves used per-reload uids; remap plant records onto the current ones
+    // so watering still targets real plants instead of stale ids.
+    var room = PR.store && PR.store.state && PR.store.state.room;
+    if (room && Array.isArray(room.plants) && room.plants.length) {
+      var known = {};
+      items.forEach(function (it) { known[it.id] = true; });
+      var stale = room.plants.some(function (p) { return !known[p.id]; });
+      if (stale) {
+        var plantItems = items.filter(function (it) { return it.plant; });
+        room.plants = plantItems.map(function (it, idx) {
+          var old = room.plants[idx];
+          return { id: it.id, water: old && typeof old.water === 'number' ? old.water : 3 };
+        });
+      }
+    }
+    PR.roomlife.setItems(items);
   }
 
   function refreshAnchors() {
@@ -1718,9 +1734,9 @@
       var data = { v: 1, night: state.night, floor: [], wall: [] };
       state.items.forEach(function (it) {
         if (it.wall) {
-          data.wall.push({ id: it.def.id, wall: it.wall, u: +it.u.toFixed(3), y: +it.y.toFixed(3), variant: it.variant });
+          data.wall.push({ id: it.def.id, wall: it.wall, u: +it.u.toFixed(3), y: +it.y.toFixed(3), variant: it.variant, uid: it.uid });
         } else {
-          data.floor.push({ id: it.def.id, x: +it.x.toFixed(3), z: +it.z.toFixed(3), rot: +it.rot.toFixed(3), variant: it.variant });
+          data.floor.push({ id: it.def.id, x: +it.x.toFixed(3), z: +it.z.toFixed(3), rot: +it.rot.toFixed(3), variant: it.variant, uid: it.uid });
         }
       });
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -1772,7 +1788,7 @@
       (data.floor || []).forEach(function (e) {
         var def = defById(e.id);
         if (!def) return;
-        spawn(def, { x: +e.x || 0, z: +e.z || 0, rot: +e.rot || 0, variant: e.variant || 0 });
+        spawn(def, { x: +e.x || 0, z: +e.z || 0, rot: +e.rot || 0, variant: e.variant || 0, uid: e.uid });
       });
       (data.wall || []).forEach(function (e) {
         var def = defById(e.id);
