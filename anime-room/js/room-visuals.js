@@ -141,6 +141,12 @@ PR.roomVisuals = (function () {
     var stage = 3 - w; // 0 healthy -> 3 wilted
     if (baseScale[item.uid] == null) baseScale[item.uid] = item.group.scale.x || 1;
     var base = baseScale[item.uid];
+    if (stage === 0) {
+      // fully healthy: force the original look, even if a previous stage left residue
+      item.group.scale.setScalar(base);
+      tintGroup(item.group, 0xa8904a, 0);
+      return;
+    }
     var scale = [1, 0.97, 0.92, 0.85][stage];
     item.group.scale.setScalar(base * scale);
     tintGroup(item.group, 0xa8904a, [0, 0.12, 0.3, 0.55][stage]);

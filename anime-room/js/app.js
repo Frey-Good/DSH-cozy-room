@@ -1766,6 +1766,7 @@
         var targets = plants;
         targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
         if (state.char) state.char.obj.playExtra('自制:浇水-A');
+        if (PR.roomVisuals) PR.roomVisuals.refresh();
       },
       read: function () {
         if (state.char && state.char.obj && state.char.obj.startRead) state.char.obj.startRead();
