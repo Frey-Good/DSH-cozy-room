@@ -728,6 +728,11 @@
       for (var i = 0; i < state.items.length; i++) {
         if (state.items[i].uid === id) return { x: state.items[i].x, z: state.items[i].z };
       }
+      // stale plant id (old save): stand next to any plant instead of giving up
+      for (var j = 0; j < state.items.length; j++) {
+        var d = state.items[j].def;
+        if (d && (d.id === 'plant' || d.id === 'palm')) return { x: state.items[j].x, z: state.items[j].z };
+      }
     }
     if (task.kind === 'clean') {
       var list = PR.roomlife.dirtyList ? PR.roomlife.dirtyList() : [];
