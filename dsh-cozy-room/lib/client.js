@@ -1677,6 +1677,20 @@
           togglePhone();
         });
 
+        // Clicking any empty area dismisses the floating panels.
+        document.addEventListener('pointerdown', function (event) {
+          const t = event.target;
+          if (panel && panel.style.display !== 'none' && !panel.contains(t) && !gear.contains(t)) {
+            panel.style.display = 'none';
+          }
+          if (libModal && libModal.style.display !== 'none' && !libModal.contains(t)) {
+            libModal.style.display = 'none';
+          }
+          if (phoneEl && phoneEl.classList.contains('open') && !phoneEl.contains(t) && !phoneBtn.contains(t)) {
+            closePhone();
+          }
+        }, true);
+
 
         window.__cozyRoom = {
           get sleeping() { return roomSleeping; },
