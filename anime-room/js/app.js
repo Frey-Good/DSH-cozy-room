@@ -2126,6 +2126,8 @@
           return;
         }
       }
+      try { parent.postMessage({ type: 'cozy-room-got' }, '*'); } catch (e) {}
+      try { parent.postMessage({ type: 'cozy-room-typing', typing: true }, '*'); } catch (e) {}
       // talking to her pauses room chores (she is looking at the phone)
       state.chore = null;
       state.chorePauseUntil = Date.now() + 15000;
@@ -2136,6 +2138,7 @@
       var userText = String(e.data.text || '');
       var cmd = PR.mind ? PR.mind.handle(userText) : null;
       var pendingReply = (state.aiChat !== false && PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText, cmd) : null;
+      if (!pendingReply) { try { parent.postMessage({ type: 'cozy-room-typing', typing: false }, '*'); } catch (e) {} }
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';

@@ -349,8 +349,12 @@
             if (phoneEl && phoneView === 'ach') renderAchievements();
             return;
           }
+          if (event.data.type === 'cozy-room-got') {
+            lastAck = Date.now();
+            return;
+          }
           if (event.data.type === 'cozy-room-typing') {
-            if (!event.data.typing) stopTyping();
+            if (!event.data.typing) { lastIgnored = Date.now(); stopTyping(); }
             return;
           }
           if (event.data.type === 'cozy-room-speech') {
@@ -1656,6 +1660,8 @@
 
         const PHONE_REPLIES = ['嗯嗯，我在。', '好呀～', '我记下啦。', '你先忙，我陪着你。'];
 
+        let lastAck = 0;
+        let lastIgnored = 0;
         function sendPhone() {
           if (!phoneEl) return;
           const input = phoneEl.querySelector('.dsh-phone-foot input');
@@ -1664,15 +1670,26 @@
           input.value = '';
           addPhoneMessage(text, 'me');
           const sentAt = Date.now();
+          lastAck = 0;
+          lastIgnored = 0;
           startTyping();
-          try {
-            frame.contentWindow.postMessage({ type: 'cozy-room-say', text: text }, roomOrigin || '*');
-          } catch (error) {}
-          // Fallback only if the room cannot answer (no her-message within 9s).
+          const post = function () {
+            try {
+              frame.contentWindow.postMessage({ type: 'cozy-room-say', text: text }, roomOrigin || '*');
+            } catch (error) {}
+          };
+          post();
+          // If the frame was reloading, try once more before giving up.
+          setTimeout(function () {
+            if (!lastAck && !lastIgnored) post();
+          }, 1600);
+          // Canned reply only when she actually got the message but the model died.
           setTimeout(function () {
             const replied = phoneData.messages.some(function (m) { return m.from === 'her' && m.ts > sentAt; });
-            if (!replied) addPhoneMessage(PHONE_REPLIES[Math.floor(Math.random() * PHONE_REPLIES.length)], 'her');
-          }, 9000);
+            if (lastAck && !lastIgnored && !replied) {
+              addPhoneMessage(PHONE_REPLIES[Math.floor(Math.random() * PHONE_REPLIES.length)], 'her');
+            }
+          }, 12000);
         }
 
         function postPhoneState() {
