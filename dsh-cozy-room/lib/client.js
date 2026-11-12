@@ -605,6 +605,19 @@
         fxRow.appendChild(fxSel);
         panel.appendChild(fxRow);
 
+        const moreTitle = document.createElement('div');
+        moreTitle.textContent = '她';
+        Object.assign(moreTitle.style, {
+          marginTop: '10px', paddingTop: '8px', paddingBottom: '2px',
+          fontSize: '11px', opacity: '.5', borderTop: '1px solid rgba(255,255,255,.07)',
+        });
+        panel.appendChild(moreTitle);
+        toggleRow('接入大模型', 'aiChat');
+        toggleRow('碎碎念', 'quips');
+        toggleRow('随机动作库', 'randomActions');
+        toggleRow('自己打扫', 'autoChores');
+        toggleRow('房间会变旧', 'roomLife');
+
         const libBtn = document.createElement('div');
         libBtn.textContent = '🎬 打开动作库';
         Object.assign(libBtn.style, {

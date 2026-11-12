@@ -8,6 +8,9 @@ PR.quip = (function () {
   var MIN_GAP = 12000; // 同一时间只让模型说一句，避免刷屏/烧 token
 
   function get(kind, fallback) {
+    if (typeof PR.quipsEnabled !== 'undefined' && PR.quipsEnabled === false) {
+      return Promise.resolve(fallback || '');
+    }
     var now = Date.now();
     if (now - lastAt < MIN_GAP) return Promise.resolve(fallback || '');
     lastAt = now;

@@ -40,6 +40,11 @@
     timeSync: true,
     weatherSync: false,
     city: '沈阳',
+    aiChat: true,
+    quips: true,
+    randomActions: true,
+    autoChores: true,
+    roomLife: true,
   };
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   try {
@@ -755,6 +760,7 @@
     if (!PR.roomlife || !state.char || !state.present) return false;
     if (state.chore) return false;
     if (state.char.sleeping || state.working) return false;
+    if (state.autoChores === false) return false;
     var now = Date.now();
     if (!force && now < (state.chorePauseUntil || 0)) return false;
     if (!force && now < state.choreNextAt) return false;
@@ -879,6 +885,13 @@
     }
     if (!s.parallax && PR.world.setParallax) PR.world.setParallax(0, 0);
     if (!s.weatherSync && PR.weather) PR.weather.set('clear');
+    state.aiChat = s.aiChat !== false;
+    state.autoChores = s.autoChores !== false;
+    state.roomLife = s.roomLife !== false;
+    PR.quipsEnabled = s.quips !== false;
+    if (state.char && state.char.obj.setAmbientPool && state.ambientPool) {
+      state.char.obj.setAmbientPool(s.randomActions === false ? [] : state.ambientPool);
+    }
     tickClock();
   }
 
@@ -1964,7 +1977,10 @@
       PR.roomlife.subscribe(function () {
         if (PR.roomVisuals) PR.roomVisuals.refresh();
       });
-      var roomTick = function () { try { PR.roomlife.tick(Date.now()); } catch (e) {} };
+      var roomTick = function () {
+        if (state.roomLife === false) return;
+        try { PR.roomlife.tick(Date.now()); } catch (e) {}
+      };
       if (PR.scheduler && PR.scheduler.every) PR.scheduler.every(60000, roomTick);
       else setInterval(roomTick, 60000);
       document.addEventListener('visibilitychange', function () {
@@ -1991,7 +2007,8 @@
       var pool = PR.actionLibrary.filter(function (e) {
         return e.file && ['自制:看书', '自制:扫地', '自制:浇水', '自制:看手机'].every(function (p) { return e.id.indexOf(p) !== 0; });
       });
-      state.char.obj.setAmbientPool(pool);
+      state.ambientPool = pool;
+      if (state.settings.randomActions !== false) state.char.obj.setAmbientPool(pool);
     }
     applySettings();
     tickClock();
@@ -2118,7 +2135,7 @@
       }
       var userText = String(e.data.text || '');
       var cmd = PR.mind ? PR.mind.handle(userText) : null;
-      var pendingReply = (PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText, cmd) : null;
+      var pendingReply = (state.aiChat !== false && PR.chat && PR.chat.replyAsync) ? PR.chat.replyAsync(userText, cmd) : null;
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
@@ -2190,7 +2207,8 @@
       var pool = PR.actionLibrary.filter(function (e) {
         return e.file && ['自制:看书', '自制:扫地', '自制:浇水', '自制:看手机'].every(function (p) { return e.id.indexOf(p) !== 0; });
       });
-      state.char.obj.setAmbientPool(pool);
+      state.ambientPool = pool;
+      if (state.settings.randomActions !== false) state.char.obj.setAmbientPool(pool);
     }
       return;
     }
