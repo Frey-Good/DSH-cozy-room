@@ -25,6 +25,11 @@
         timeSync: true,
         weatherSync: false,
         city: '沈阳',
+        aiChat: true,
+        quips: true,
+        randomActions: true,
+        autoChores: true,
+        roomLife: true,
       };
       const CLIPS = {
         idle: '待机呼吸休闲.webm',
