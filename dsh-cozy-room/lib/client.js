@@ -390,7 +390,16 @@
         panel.id = 'dsh-cozy-room-panel';
         Object.assign(panel.style, {
           display: 'none',
-          width: '252px',
+          position: 'fixed',
+          right: '74px',
+          bottom: '18px',
+          zIndex: '2147482990',
+          width: '262px',
+          maxHeight: 'calc(100vh - 36px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          overscrollBehavior: 'contain',
+          scrollbarWidth: 'thin',
           padding: '12px 14px 10px',
           borderRadius: '16px',
           background: 'rgba(18,22,30,.86)',
@@ -409,6 +418,14 @@
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: '6px',
+          position: 'sticky',
+          top: '-12px',
+          zIndex: '2',
+          paddingTop: '4px',
+          paddingBottom: '6px',
+          background: 'rgba(18,22,30,.96)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
         });
         const title = document.createElement('span');
         title.textContent = '小蓝的设置';
