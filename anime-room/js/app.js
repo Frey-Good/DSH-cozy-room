@@ -2113,13 +2113,20 @@
     }
     if (e.data.type === 'cozy-room-say') {
       if (!state.char || !state.char.obj.playExtra) return;
+      // Acknowledge first so the phone never invents a reply while she ignores it.
+      try { parent.postMessage({ type: 'cozy-room-got' }, '*'); } catch (e) {}
       if (state.char.obj.isReading && state.char.obj.isReading()) {
-        if (Math.random() < 0.15) {
+        state.readIgnores = (state.readIgnores || 0) + 1;
+        // 15% chance to look up; pestering her twice always works.
+        if (Math.random() < 0.15 || state.readIgnores >= 2) {
+          state.readIgnores = 0;
           state.char.obj.stopRead();
         } else {
           try { parent.postMessage({ type: 'cozy-room-typing', typing: false }, '*'); } catch (e) {}
           return;
         }
+      } else {
+        state.readIgnores = 0;
       }
       if (state.char.sleeping || (state.char.obj.isSleeping && state.char.obj.isSleeping())) {
         // Asleep: usually no reply (and no typing indicator), small chance to wake.
@@ -2147,13 +2154,12 @@
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
       if (spot === 'bed') phoneClip = '自制:躺刷手机';
-      // A short, human pause (0–1s) before she picks up the phone.
-      var pause = Math.floor(Math.random() * 1000);
+      // Pick up the phone right away; never let a failed clip swallow the reply.
+      try {
+        if (state.char && state.char.obj) state.char.obj.playExtra(phoneClip);
+      } catch (err) { console.warn('phone clip failed', err); }
       setTimeout(function () {
-        if (!state.char || !state.char.obj) return;
-        state.char.obj.playExtra(phoneClip);
-        // Reply lands when the clip reaches its send beat.
-        setTimeout(function () {
+        try {
           var settle = false;
           var finish = function (line) {
             if (settle) return;
@@ -2166,10 +2172,10 @@
             finish(PR.chat ? PR.chat.reply(userText) : pickLine(['嗯嗯，我在。', '好呀～', '我记下啦。']));
           };
           if (!pendingReply) return fallback();
-          pendingReply.then(function (text) { if (text) finish(text); });
+          pendingReply.then(function (text) { if (text) finish(text); }, function () { if (!settle) fallback(); });
           setTimeout(function () { if (!settle) fallback(); }, 2600);
-        }, 5600);
-      }, pause);
+        } catch (err) { console.warn('phone reply failed', err); }
+      }, 1200);
       return;
     }
     if (e.data.type === 'cozy-room-anchor') {

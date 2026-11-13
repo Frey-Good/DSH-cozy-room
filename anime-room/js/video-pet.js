@@ -53,6 +53,7 @@
     var ambientClock = 0;
     var sleeping = false;
     var reading = false;
+    var readUntil = 0;
     var sleepClock = 0;
     function isNightHour() {
       var h = typeof window.__forceHour === 'number' ? window.__forceHour : new Date().getHours();
@@ -490,6 +491,7 @@
         if (reading) return false;
         sleeping = false;
         reading = true;
+        readUntil = Date.now() + 30 * 60 * 1000;  // never read forever
         stopWorkCycle();
         goto('readStart');
         return true;
@@ -497,6 +499,7 @@
       stopRead: function () {
         if (!reading) return false;
         reading = false;
+        readUntil = 0;
         goto('readEnd');
         return true;
       },
@@ -634,6 +637,12 @@
 
         // She sleeps until someone wakes her (click / recall / summon).
         // No auto-wake, and DSH work does not wake her either.
+
+        if (reading && readUntil && Date.now() > readUntil) {
+          reading = false;
+          readUntil = 0;
+          if (clips.readEnd) goto('readEnd');
+        }
 
         if (!pending && fadeDir === 0 && current === 'idle' && !sleeping && !reading && !working && Date.now() > manualUntil) {
           ambientClock += dt;
