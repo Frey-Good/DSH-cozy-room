@@ -921,27 +921,12 @@
     if (!ch) return;
     var asleep = ch.sleeping || (ch.obj.isSleeping && ch.obj.isSleeping());
     if (asleep) {
-      // At night she is not a toy: poke her awake and she gets grumpy, then
-      // rolls back over. (The desktop pet card has its own 3-click wake rule.)
-      if (state.night) {
-        if (PR.quip) PR.quip.get('睡着被吵醒，有点不情愿', '唔…别吵…').then(function (t) { say(t, 2600); });
-        else say('唔…别吵…', 2600);
-        // A little annoyed wiggle instead of a full animation switch.
-        var base = ch.obj.baseScale || 1;
-        var t0 = performance.now();
-        (function wiggle() {
-          var k = (performance.now() - t0) / 500;
-          if (k >= 1) {
-            ch.obj.root.scale.setScalar(base);
-            return;
-          }
-          var pulse = 1 + Math.sin(k * Math.PI * 10) * 0.025;
-          ch.obj.root.scale.setScalar(base * pulse);
-          requestAnimationFrame(wiggle);
-        })();
-        return;
-      }
+      // Poke her awake: she gets up (grumpy at night), plays for a while,
+      // and goes back to bed later on her own.
       wakeUp();
+      if (PR.quip) {
+        PR.quip.get(state.night ? '半夜被戳醒，有点不情愿' : '被轻轻戳了一下', '唔…').then(function (t) { say(t, 2200); });
+      }
       return;
     }
     wakeUp();

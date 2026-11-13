@@ -407,16 +407,18 @@
       if (resleepTimer) { clearTimeout(resleepTimer); resleepTimer = null; }
     }
 
-    function scheduleResleep() {
+    function scheduleResleep(delay) {
       cancelResleep();
       if (!isNightHour()) return;
+      var wait = delay || (120000 + Math.random() * 120000); // 2–4 minutes
       resleepTimer = setTimeout(function () {
         resleepTimer = null;
-        if (sleeping || reading || working) return;
-        if (Date.now() < manualUntil) { scheduleResleep(); return; }
         if (!isNightHour()) return;
+        if (sleeping) return;
+        if (working || reading) { scheduleResleep(60000); return; }
+        if (Date.now() < manualUntil) { scheduleResleep(30000); return; }
         goSleep(true);
-      }, 5000);
+      }, wait);
     }
 
     function goSleep(direct) {
@@ -461,8 +463,8 @@
           sleepClock = 0;
           saveSleepState();
           clearTimeout(windTimer);
-          // Woken at night: she shouldn't start playing; go back to bed shortly.
-          manualUntil = Math.max(manualUntil, Date.now() + 4000);
+          // Woken at night: stay up and play for a few minutes, then go back.
+          manualUntil = Math.max(manualUntil, Date.now() + 2000);
           goto('wake');
           scheduleResleep();
           return;
