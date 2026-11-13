@@ -132,6 +132,7 @@
     var queue = [];
     var lastAmbient = null;
     var windTimer = null;
+    var resleepTimer = null;
     var extAmbient = [];
 
     function makeVideo(src) {
@@ -402,6 +403,44 @@
         else if (clips.sleepLoop) goto('sleepLoop');
       }
     } catch (e) {}
+    function cancelResleep() {
+      if (resleepTimer) { clearTimeout(resleepTimer); resleepTimer = null; }
+    }
+
+    function scheduleResleep() {
+      cancelResleep();
+      if (!isNightHour()) return;
+      resleepTimer = setTimeout(function () {
+        resleepTimer = null;
+        if (sleeping || reading || working) return;
+        if (Date.now() < manualUntil) { scheduleResleep(); return; }
+        if (!isNightHour()) return;
+        goSleep();
+      }, 10000);
+    }
+
+    function goSleep() {
+      cancelResleep();
+      if (PR.roomlife && !PR.roomlife.canSleep()) {
+        try { PR.roomlife.tidyBed(); } catch (e) {}
+      }
+      stopWorkCycle();
+      sleeping = true;
+      sleepAt = Date.now();
+      saveSleepState();
+      sleepClock = 0;
+      // If the bed clips exist: scroll the phone for a bit, then doze off.
+      if (clips.liePhone && clips.lieSleep) {
+        goto('liePhone');
+        clearTimeout(windTimer);
+        windTimer = setTimeout(function () {
+          if (sleeping && current === 'liePhone') goto('lieSleep');
+        }, 18000);
+      } else {
+        goto('sleepStart');
+      }
+    }
+
     if (clips.idle && !sleeping) playClip('idle');
 
     return {
@@ -409,27 +448,7 @@
       baseScale: 1,
       isVideo: true,
       play: function (name) {
-        if (name === 'sleep') {
-          if (PR.roomlife && !PR.roomlife.canSleep()) {
-            try { PR.roomlife.tidyBed(); } catch (e) {}
-          }
-          stopWorkCycle();
-          sleeping = true;
-          sleepAt = Date.now();
-          saveSleepState();
-          sleepClock = 0;
-          // If the bed clips exist: scroll the phone for a bit, then doze off.
-          if (clips.liePhone && clips.lieSleep) {
-            goto('liePhone');
-            clearTimeout(windTimer);
-            windTimer = setTimeout(function () {
-              if (sleeping && current === 'liePhone') goto('lieSleep');
-            }, 18000);
-          } else {
-            goto('sleepStart');
-          }
-          return;
-        }
+        if (name === 'sleep') { goSleep(); return; }
         if (name === 'wake') {
           if (!sleeping) return;
           sleeping = false;
@@ -437,7 +456,10 @@
           sleepClock = 0;
           saveSleepState();
           clearTimeout(windTimer);
+          // Woken at night: she shouldn't start playing; go back to bed shortly.
+          manualUntil = Math.max(manualUntil, Date.now() + 10000);
           goto('wake');
+          scheduleResleep();
           return;
         }
         if (name === 'work') {
@@ -449,6 +471,7 @@
       setWorkState: function (st) {
         if (Date.now() < manualUntil) return;
         if (reading) return;
+        cancelResleep();
         // A relaxed cycle of work poses instead of one frozen loop.
         if (st === 'success' || st === 'error') stopWorkCycle();
         if (!st || st === 'idle') stopWorkCycle();
@@ -517,6 +540,7 @@
         sleeping = false;
         reading = true;
         readUntil = Date.now() + 30 * 60 * 1000;  // never read forever
+        cancelResleep();
         stopWorkCycle();
         goto('readStart');
         return true;
@@ -547,6 +571,7 @@
           }
         }
         if (!item) return false;
+        cancelResleep();
         manualUntil = Date.now() + 30000;
         sleeping = false;
         workState = 'idle';
