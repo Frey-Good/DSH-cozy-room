@@ -462,6 +462,19 @@
   };
 
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  if (window.ResizeObserver) {
+    try { new ResizeObserver(function () { resize(); }).observe(stage); } catch (e) {}
+  }
+  window.addEventListener('load', function () {
+    resize();
+    setTimeout(resize, 300);
+    setTimeout(resize, 1200);
+  });
+  // Cheap safety net: DSH may resize its iframe without a window resize event,
+  // and the first paint can happen before the shell settles.
+  setInterval(resize, 1000);
   resize();
 })();
 
