@@ -415,11 +415,11 @@
         if (sleeping || reading || working) return;
         if (Date.now() < manualUntil) { scheduleResleep(); return; }
         if (!isNightHour()) return;
-        goSleep();
-      }, 10000);
+        goSleep(true);
+      }, 4000);
     }
 
-    function goSleep() {
+    function goSleep(direct) {
       cancelResleep();
       if (PR.roomlife && !PR.roomlife.canSleep()) {
         try { PR.roomlife.tidyBed(); } catch (e) {}
@@ -429,7 +429,12 @@
       sleepAt = Date.now();
       saveSleepState();
       sleepClock = 0;
-      // If the bed clips exist: scroll the phone for a bit, then doze off.
+      // Woken and sent back to bed: lie down and close her eyes right away.
+      if (direct && clips.lieSleep) {
+        goto('lieSleep');
+        return;
+      }
+      // Going to bed normally: scroll the phone for a bit, then doze off.
       if (clips.liePhone && clips.lieSleep) {
         goto('liePhone');
         clearTimeout(windTimer);
