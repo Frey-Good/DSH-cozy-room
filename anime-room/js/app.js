@@ -2310,6 +2310,7 @@
       return s.room;
     },
     debugPos: function () { return state.char && state.char.obj.getPos ? state.char.obj.getPos() : null; },
+    debugWake: function () { if (state.char) { state.char.sleeping = false; if (state.char.obj.play) state.char.obj.play('wake'); } },
     debugSleep: function () { if (state.char) { state.char.sleeping = true; state.char.obj.play('sleep'); } },
     debugSetWorking: function (v) { state.working = !!v; if (state.char) state.char.obj.setWorking(!!v); },
     say: function (text, ms) { say(text, ms); },

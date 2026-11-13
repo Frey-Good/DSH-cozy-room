@@ -194,7 +194,7 @@ async function load() {
     chips(document.getElementById('likes'), likes);
     chips(document.getElementById('dislikes'), dislikes, 'dislike');
     chips(document.getElementById('wants'), wants.length ? wants : (id.wants || []), 'want');
-    if (id.name) document.getElementById('herName').textContent = id.name;
+    document.getElementById('herName').textContent = id.name || '小蓝';
     renderSelf(j.self || '');
     renderUser(j.user || '');
   } catch (err) {

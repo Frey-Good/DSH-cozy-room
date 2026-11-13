@@ -343,7 +343,7 @@ async function ensureIdentity(ctx) {
   const birth = computeBirth(when);
   let seed = await llmSeed(ctx, birth);
   if (!seed) seed = fallbackSeed(birth.sign, birth.animal);
-  const identity = { ...birth, ...seed, createdAt: Date.now() };
+  const identity = { ...birth, ...seed, name: '小蓝', createdAt: Date.now() };
   writeIdentity(identity);
   return identity;
 }
@@ -354,7 +354,7 @@ function resolveRoot() {
     process.env.DSH_COZY_ROOM_DIR,
     path.join(PKG_ROOT, 'room'),
   ].filter(Boolean);
-  return candidates.find(here) || candidates[0];
+  return path.resolve(candidates.find(here) || candidates[0]);
 }
 
 export function apply(ctx) {
