@@ -904,7 +904,6 @@
   }
 
   function wakeUp() {
-    try { console.log('WAKE-STACK', new Error().stack); } catch (e) {}
     var ch = state.char;
     if (!ch) return;
     var wasAsleep = ch.sleeping || ch.yawnAt;
