@@ -457,10 +457,14 @@
         if (sleeping) {
           var h = isNightHour();
           if (h) return;
+          // An idle status ping must never wake a nap; only real work does.
+          if (!st || st === 'idle') return;
           workState = st || 'idle';
           working = workState !== 'idle';
           sleeping = false;
+          sleepAt = 0;
           sleepClock = 0;
+          saveSleepState();
           goto('wake');
           return;
         }
