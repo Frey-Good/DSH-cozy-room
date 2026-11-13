@@ -556,7 +556,13 @@
         // except for the lying clips that are meant to run on the bed.
         if (pos === 'bed' && id !== '自制:躺刷手机' && id !== '自制:躺睡觉') applyPose('home', false);
         clearTimeout(windTimer);
-        if (!clips[id]) addUrlClip(id, item.file, { where: 'here', next: 'home' });
+        if (!clips[id]) {
+          if (id === '自制:躺刷手机' || id === '自制:躺睡觉') {
+            addUrlClip(id, item.file, { where: 'bed', loop: true });
+          } else {
+            addUrlClip(id, item.file, { where: 'here', next: 'home' });
+          }
+        }
         goto(id);
         return true;
       },
