@@ -2160,6 +2160,8 @@
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
       if (spot === 'bed') phoneClip = '自制:躺刷手机';
+      // Let the phone animation finish before the reply lands in the chat.
+      var replyAt = phoneClip === '自制:躺刷手机' ? 9000 : 7000;
       // Action commands (sleep/read/clean/water/feed/tidy) must not be buried
       // under the phone clip; everything else answers on the phone.
       var actionCmd = cmd && !cmd.refused && ['sleep', 'read', 'clean', 'water', 'feed', 'tidy'].indexOf(cmd.kind) >= 0;
@@ -2185,7 +2187,7 @@
           pendingReply.then(function (text) { if (text) finish(text); }, function () { if (!settle) fallback(); });
           setTimeout(function () { if (!settle) fallback(); }, 2600);
         } catch (err) { console.warn('phone reply failed', err); }
-      }, 1200);
+      }, replyAt);
       return;
     }
     if (e.data.type === 'cozy-room-anchor') {
