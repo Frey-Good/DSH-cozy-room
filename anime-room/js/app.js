@@ -1780,47 +1780,52 @@
     } catch (err) { /* storage unavailable */ }
     refreshAnchors();
     if (PR.roomVisuals) PR.roomVisuals.setItems(state.items);
-    if (PR.mind) PR.mind.setHandlers({
-      sleep: function () {
-        if (!state.char) return;
-        state.char.sleeping = true;
-        state.char.obj.play('sleep');
-      },
-      clean: function () {
-        var all = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList() : [];
-        var dusty = all.filter(function (x) { return x.kind === 'item'; });
-        var floors = all.filter(function (x) { return x.kind === 'floor'; });
-        if (dusty.length && PR.roomlife) {
-          PR.roomlife.clean('item', { id: dusty[0].id });
-          if (state.char) state.char.obj.playExtra('碎碎念-擦桌碎碎念');
-        } else {
-          if (floors.length && PR.roomlife) PR.roomlife.clean('floor', floors[0]);
-          if (state.char) state.char.obj.playExtra('自制:扫地-A');
-        }
-        if (PR.roomVisuals) PR.roomVisuals.refresh();
-      },
-      water: function () {
-        var room = PR.store && PR.store.state && PR.store.state.room;
-        var plants = (room && room.plants) || [];
-        // a watering session tops up every plant, not only the nearly-dead ones
-        var targets = plants;
-        targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
-        if (state.char) state.char.obj.playExtra('自制:浇水-A');
-        if (PR.roomVisuals) PR.roomVisuals.refresh();
-      },
-      read: function () {
-        if (state.char && state.char.obj && state.char.obj.startRead) state.char.obj.startRead();
-      },
-      feed: function () {
-        if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
-        if (PR.roomlife) PR.roomlife.feedCat();
-      },
-      tidy: function () {
-        if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
-        if (PR.roomlife) PR.roomlife.tidyBed();
-      },
-    });
     roomLifeRefresh();
+  }
+
+  // Registered once at boot: commands must work before the first save().
+  function registerMindHandlers() {
+    if (!PR.mind) return;
+      PR.mind.setHandlers({
+        sleep: function () {
+          if (!state.char) return;
+          state.char.sleeping = true;
+          state.char.obj.play('sleep');
+        },
+        clean: function () {
+          var all = (PR.roomlife && PR.roomlife.dirtyList) ? PR.roomlife.dirtyList() : [];
+          var dusty = all.filter(function (x) { return x.kind === 'item'; });
+          var floors = all.filter(function (x) { return x.kind === 'floor'; });
+          if (dusty.length && PR.roomlife) {
+            PR.roomlife.clean('item', { id: dusty[0].id });
+            if (state.char) state.char.obj.playExtra('碎碎念-擦桌碎碎念');
+          } else {
+            if (floors.length && PR.roomlife) PR.roomlife.clean('floor', floors[0]);
+            if (state.char) state.char.obj.playExtra('自制:扫地-A');
+          }
+          if (PR.roomVisuals) PR.roomVisuals.refresh();
+        },
+        water: function () {
+          var room = PR.store && PR.store.state && PR.store.state.room;
+          var plants = (room && room.plants) || [];
+          // a watering session tops up every plant, not only the nearly-dead ones
+          var targets = plants;
+          targets.forEach(function (p) { if (PR.roomlife) PR.roomlife.water(p.id); });
+          if (state.char) state.char.obj.playExtra('自制:浇水-A');
+          if (PR.roomVisuals) PR.roomVisuals.refresh();
+        },
+        read: function () {
+          if (state.char && state.char.obj && state.char.obj.startRead) state.char.obj.startRead();
+        },
+        feed: function () {
+          if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
+          if (PR.roomlife) PR.roomlife.feedCat();
+        },
+        tidy: function () {
+          if (state.char && state.char.obj && state.char.obj.isReading && state.char.obj.isReading()) state.char.obj.stopRead();
+          if (PR.roomlife) PR.roomlife.tidyBed();
+        },
+      });
   }
 
   function loadLayout() {
@@ -2005,6 +2010,7 @@
     startStatusPoll();
     startCommandPoll();
     spawnCat();
+    registerMindHandlers();
     registerOwnClips();
     postLibrary();
     if (state.char && state.char.obj.setAmbientPool && PR.actionLibrary) {
@@ -2154,10 +2160,14 @@
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
       if (spot === 'bed') phoneClip = '自制:躺刷手机';
-      // Pick up the phone right away; never let a failed clip swallow the reply.
-      try {
-        if (state.char && state.char.obj) state.char.obj.playExtra(phoneClip);
-      } catch (err) { console.warn('phone clip failed', err); }
+      // Action commands (sleep/read/clean/water/feed/tidy) must not be buried
+      // under the phone clip; everything else answers on the phone.
+      var actionCmd = cmd && !cmd.refused && ['sleep', 'read', 'clean', 'water', 'feed', 'tidy'].indexOf(cmd.kind) >= 0;
+      if (!actionCmd) {
+        try {
+          if (state.char && state.char.obj) state.char.obj.playExtra(phoneClip);
+        } catch (err) { console.warn('phone clip failed', err); }
+      }
       setTimeout(function () {
         try {
           var settle = false;

@@ -94,6 +94,12 @@
       error: 'scared',
     };
 
+    function saveSleepState() {
+      try {
+        localStorage.setItem('cozy-room-sleep', JSON.stringify({ sleeping: sleeping, at: sleepAt || Date.now() }));
+      } catch (e) {}
+    }
+
     function workClip() {
       return WORK_CLIPS[workState] || 'think';
     }
@@ -386,7 +392,17 @@
 
     if (nextHome) home = nextHome();
     applyPose('home', false);
-    if (clips.idle) playClip('idle');
+    // Resume the sleep that was interrupted by a page refresh (up to 9h).
+    try {
+      var savedSleep = JSON.parse(localStorage.getItem('cozy-room-sleep') || 'null');
+      if (savedSleep && savedSleep.sleeping && Date.now() - (savedSleep.at || 0) < 9 * 60 * 60 * 1000) {
+        sleeping = true;
+        sleepAt = savedSleep.at || Date.now();
+        if (clips.lieSleep) goto('lieSleep');
+        else if (clips.sleepLoop) goto('sleepLoop');
+      }
+    } catch (e) {}
+    if (clips.idle && !sleeping) playClip('idle');
 
     return {
       root: group,
@@ -400,6 +416,7 @@
           stopWorkCycle();
           sleeping = true;
           sleepAt = Date.now();
+          saveSleepState();
           sleepClock = 0;
           // If the bed clips exist: scroll the phone for a bit, then doze off.
           if (clips.liePhone && clips.lieSleep) {
@@ -416,7 +433,9 @@
         if (name === 'wake') {
           if (!sleeping) return;
           sleeping = false;
+          sleepAt = 0;
           sleepClock = 0;
+          saveSleepState();
           clearTimeout(windTimer);
           goto('wake');
           return;
@@ -558,7 +577,17 @@
         moveAfter = 1 + Math.floor(Math.random() * 8);
         if (nextHome) home = nextHome();
         applyPose('home', false);
-        if (clips.idle) playClip('idle');
+        // Resume the sleep that was interrupted by a page refresh (up to 9h).
+    try {
+      var savedSleep = JSON.parse(localStorage.getItem('cozy-room-sleep') || 'null');
+      if (savedSleep && savedSleep.sleeping && Date.now() - (savedSleep.at || 0) < 9 * 60 * 60 * 1000) {
+        sleeping = true;
+        sleepAt = savedSleep.at || Date.now();
+        if (clips.lieSleep) goto('lieSleep');
+        else if (clips.sleepLoop) goto('sleepLoop');
+      }
+    } catch (e) {}
+    if (clips.idle && !sleeping) playClip('idle');
         ambientClock = 0;
         startAmbient();
         var guard = 0;
