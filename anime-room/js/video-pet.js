@@ -416,7 +416,7 @@
         if (Date.now() < manualUntil) { scheduleResleep(); return; }
         if (!isNightHour()) return;
         goSleep(true);
-      }, 4000);
+      }, 5000);
     }
 
     function goSleep(direct) {
@@ -462,7 +462,7 @@
           saveSleepState();
           clearTimeout(windTimer);
           // Woken at night: she shouldn't start playing; go back to bed shortly.
-          manualUntil = Math.max(manualUntil, Date.now() + 10000);
+          manualUntil = Math.max(manualUntil, Date.now() + 4000);
           goto('wake');
           scheduleResleep();
           return;
