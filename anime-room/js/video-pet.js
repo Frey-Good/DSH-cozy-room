@@ -560,6 +560,19 @@
         return true;
       },
       isReading: function () { return !!reading; },
+      // Brought back from the desktop: wake up, play a while, then sleep again.
+      returnedToRoom: function () {
+        cancelResleep();
+        if (sleeping) {
+          sleeping = false;
+          sleepAt = 0;
+          sleepClock = 0;
+          saveSleepState();
+          clearTimeout(windTimer);
+          if (clips.wake) goto('wake');
+        }
+        if (isNightHour()) scheduleResleep();
+      },
       setAmbientPool: function (list) {
         extAmbient = Array.isArray(list) ? list.slice() : [];
         return extAmbient.length;

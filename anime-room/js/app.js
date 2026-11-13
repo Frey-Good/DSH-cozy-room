@@ -2195,6 +2195,9 @@
       var wasPresent = state.present;
       state.present = !!e.data.present;
       if (state.char) state.char.obj.root.visible = state.present;
+      if (state.present && !wasPresent && state.char && state.char.obj.returnedToRoom) {
+        state.char.obj.returnedToRoom();
+      }
       if (PR.fx && state.char && wasPresent !== state.present) {
         var wp = state.char.obj.root.position;
         if (state.present) {
