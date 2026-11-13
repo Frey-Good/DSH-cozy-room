@@ -123,6 +123,7 @@
     }
     var queue = [];
     var lastAmbient = null;
+    var windTimer = null;
     var extAmbient = [];
 
     function makeVideo(src) {
@@ -397,13 +398,23 @@
           stopWorkCycle();
           sleeping = true;
           sleepClock = 0;
-          goto('sleepStart');
+          // If the bed clips exist: scroll the phone for a bit, then doze off.
+          if (clips.liePhone && clips.lieSleep) {
+            goto('liePhone');
+            clearTimeout(windTimer);
+            windTimer = setTimeout(function () {
+              if (sleeping && current === 'liePhone') goto('lieSleep');
+            }, 18000);
+          } else {
+            goto('sleepStart');
+          }
           return;
         }
         if (name === 'wake') {
           if (!sleeping) return;
           sleeping = false;
           sleepClock = 0;
+          clearTimeout(windTimer);
           goto('wake');
           return;
         }
@@ -513,8 +524,10 @@
         workState = 'idle';
         working = false;
         stopWorkCycle();
-        // A standing clip must never play on the bed: move back to a floor spot first.
-        if (pos === 'bed') applyPose('home', false);
+        // A standing clip must never play on the bed: move back to a floor spot first,
+        // except for the lying clips that are meant to run on the bed.
+        if (pos === 'bed' && id !== '自制:躺刷手机' && id !== '自制:躺睡觉') applyPose('home', false);
+        clearTimeout(windTimer);
         if (!clips[id]) addUrlClip(id, item.file, { where: 'here', next: 'home' });
         goto(id);
         return true;

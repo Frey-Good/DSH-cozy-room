@@ -449,6 +449,8 @@
     { id: '自制:看书-开始', name: '看书-开始', file: '自制-看书-开始.webm', cat: '看书', source: 'ours' },
     { id: '自制:看书-循环', name: '看书-循环', file: '自制-看书-循环.webm', cat: '看书', source: 'ours' },
     { id: '自制:看书-结束', name: '看书-结束', file: '自制-看书-结束.webm', cat: '看书', source: 'ours' },
+    { id: '自制:躺刷手机', name: '躺刷手机', file: '自制-躺刷手机.webm', cat: '睡觉', source: 'ours' },
+    { id: '自制:躺睡觉', name: '躺睡觉', file: '自制-躺睡觉.webm', cat: '睡觉', source: 'ours' },
     { id: '自制:扫地-B', name: '扫地-B', file: '自制-扫地-B.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-A', name: '扫地-A', file: '自制-扫地-A.webm', cat: '打扫', source: 'ours' },
     { id: '自制:扫地-D', name: '扫地-D', file: '自制-扫地-D.webm', cat: '打扫', source: 'ours' },
@@ -1967,6 +1969,8 @@
       state.char.obj.registerClip('readStart', '自制-看书-开始.webm', { where: 'home', next: 'readLoop' });
       state.char.obj.registerClip('readLoop', '自制-看书-循环.webm', { where: 'home', loop: true });
       state.char.obj.registerClip('readEnd', '自制-看书-结束.webm', { where: 'home', next: 'home' });
+      state.char.obj.registerClip('liePhone', '自制-躺刷手机.webm', { where: 'bed', loop: true });
+      state.char.obj.registerClip('lieSleep', '自制-躺睡觉.webm', { where: 'bed', loop: true });
     }
     if (PR.roomVisuals) PR.roomVisuals.init(PR.world.scene);
     if (PR.memory) PR.memory.load();
@@ -2142,6 +2146,7 @@
       var phoneClip = '自制:看手机-A';
       var spot = state.char.obj.getPos ? state.char.obj.getPos() : 'home';
       if (spot === 'desk') phoneClip = '自制:看手机-D';
+      if (spot === 'bed') phoneClip = '自制:躺刷手机';
       // A short, human pause (0–1s) before she picks up the phone.
       var pause = Math.floor(Math.random() * 1000);
       setTimeout(function () {
