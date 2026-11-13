@@ -52,6 +52,7 @@
     var moveAfterClip = false;
     var ambientClock = 0;
     var sleeping = false;
+    var sleepAt = 0;
     var reading = false;
     var readUntil = 0;
     var sleepClock = 0;
@@ -398,6 +399,7 @@
           }
           stopWorkCycle();
           sleeping = true;
+          sleepAt = Date.now();
           sleepClock = 0;
           // If the bed clips exist: scroll the phone for a bit, then doze off.
           if (clips.liePhone && clips.lieSleep) {
@@ -637,6 +639,13 @@
 
         // She sleeps until someone wakes her (click / recall / summon).
         // No auto-wake, and DSH work does not wake her either.
+
+        // A night's sleep is over in the morning; never stay asleep all day.
+        if (sleeping && sleepAt && Date.now() - sleepAt > 9 * 60 * 60 * 1000) {
+          sleeping = false;
+          sleepAt = 0;
+          goto('wake');
+        }
 
         if (reading && readUntil && Date.now() > readUntil) {
           reading = false;
