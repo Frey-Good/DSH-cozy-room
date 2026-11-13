@@ -410,7 +410,7 @@
     function scheduleResleep(delay) {
       cancelResleep();
       if (!isNightHour()) return;
-      var wait = delay || (120000 + Math.random() * 120000); // 2–4 minutes
+      var wait = window.__resleepMs || delay || (120000 + Math.random() * 120000); // 2–4 minutes
       resleepTimer = setTimeout(function () {
         resleepTimer = null;
         if (!isNightHour()) return;
